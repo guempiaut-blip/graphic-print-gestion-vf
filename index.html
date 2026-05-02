@@ -922,9 +922,6 @@ document.querySelectorAll('.overlay').forEach(function(o){
 //  DÉMARRAGE
 // ══════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════
-//  COMMERCIAUX & CLIENTS
-// ═══════════════════════════════════════════════════════════════
 var COMMERCIAUX=[
   {id:'C1',nom:'Commercial 1',couleur:'#185FA5',bg:'#E6F1FB'},
   {id:'C2',nom:'Commercial 2',couleur:'#3B6D11',bg:'#EAF3DE'},
@@ -941,11 +938,17 @@ function renderCommerciaux(){
   var isAdmin=(G_ROLE==='admin');
   var dossiers=G_DOSSIERS||[];
   var totalCA=dossiers.filter(function(d){return d.etape>=4;}).reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0);
-  var html='<div style="max-width:900px;margin:0 auto;padding:12px">';
+  var div=document.createElement('div');
+  div.style.cssText='max-width:900px;margin:0 auto;padding:12px';
   if(isAdmin){
-    html+='<div style="display:flex;justify-content:flex-end;margin-bottom:12px">';
-    html+='<button class="btn btn-p btn-sm" onclick="configurerCommerciaux()">&#9881; Configurer</button>';
-    html+='</div>';
+    var btnDiv=document.createElement('div');
+    btnDiv.style.cssText='display:flex;justify-content:flex-end;margin-bottom:12px';
+    var btn=document.createElement('button');
+    btn.className='btn btn-p btn-sm';
+    btn.textContent='\u2699 Configurer les noms';
+    btn.onclick=configurerCommerciaux;
+    btnDiv.appendChild(btn);
+    div.appendChild(btnDiv);
   }
   COMMERCIAUX.forEach(function(c){
     var dossC=dossiers.filter(function(d){return d.commercial===c.id;});
@@ -953,54 +956,74 @@ function renderCommerciaux(){
     var factCA=dossC.filter(function(d){return d.etape>=4;}).reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0);
     var encC=dossC.reduce(function(s,d){return s+totalEnc(d);},0);
     var pct=totalCA>0?Math.round(factCA/totalCA*100):0;
-    html+='<div style="background:#fff;border:0.5px solid #D3D1C7;border-left:4px solid '+c.couleur+';border-radius:0 8px 8px 0;padding:14px;margin-bottom:10px">';
-    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
-    html+='<div style="display:flex;align-items:center;gap:8px">';
-    html+='<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+c.couleur+'"></span>';
-    html+='<strong style="font-size:15px;color:'+c.couleur+'">'+c.nom+'</strong></div>';
-    html+='<span style="font-size:12px;color:#888780">'+dossC.length+' dossier(s)</span></div>';
-    html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px">';
-    html+='<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">Dossiers actifs</div><div style="font-weight:bold;font-size:18px;color:'+c.couleur+'">'+actifs.length+'</div></div>';
-    html+='<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">CA factur&#233;</div><div style="font-weight:bold;color:'+c.couleur+'">'+fmt(factCA)+'</div></div>';
-    html+='<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">Encaiss&#233;</div><div style="font-weight:bold;color:'+c.couleur+'">'+fmt(encC)+'</div></div>';
-    html+='<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">Part du CA</div><div style="font-weight:bold;color:'+c.couleur+'">'+pct+'%</div></div>';
-    html+='</div></div>';
+    var card=document.createElement('div');
+    card.style.cssText='background:#fff;border:0.5px solid #D3D1C7;border-left:4px solid '+c.couleur+';border-radius:0 8px 8px 0;padding:14px;margin-bottom:10px';
+    card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+c.couleur+'"></span>'
+      +'<strong style="font-size:15px;color:'+c.couleur+'">'+c.nom+'</strong></div>'
+      +'<span style="font-size:12px;color:#888780">'+dossC.length+' dossier(s)</span></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px">'
+      +'<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">Dossiers actifs</div><div style="font-weight:bold;font-size:18px;color:'+c.couleur+'">'+actifs.length+'</div></div>'
+      +'<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">CA factur\u00e9</div><div style="font-weight:bold;color:'+c.couleur+'">'+fmt(factCA)+'</div></div>'
+      +'<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">Encaiss\u00e9</div><div style="font-weight:bold;color:'+c.couleur+'">'+fmt(encC)+'</div></div>'
+      +'<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">Part du CA</div><div style="font-weight:bold;color:'+c.couleur+'">'+pct+'%</div></div>'
+      +'</div>';
+    div.appendChild(card);
   });
-  html+='</div>';
-  el.innerHTML=html;
-}
-
-function mkCouleurBtn(i,col,actif){
-  var b=document.createElement('span');
-  b.style.cssText='display:inline-block;width:22px;height:22px;border-radius:50%;background:'+col+';cursor:pointer;border:'+(actif?'3px solid #2C2C2A':'1px solid #ccc');
-  b.onclick=function(){changerCouleurC(i,col);};
-  return b.outerHTML;
+  el.innerHTML='';
+  el.appendChild(div);
 }
 
 function configurerCommerciaux(){
   var modal=document.getElementById('modalDossier');
-  var html='<h3>&#9881; Configurer les commerciaux</h3>';
-  html+='<div class="modal-sub">Admin uniquement</div>';
   var cols=['#185FA5','#3B6D11','#854F0B','#6B2FA0','#A32D2D'];
+  var div=document.createElement('div');
+  div.innerHTML='<h3>\u2699 Configurer les commerciaux</h3><div class="modal-sub">Admin uniquement</div>';
   COMMERCIAUX.forEach(function(c,i){
-    html+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
-    html+='<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:'+c.couleur+';flex-shrink:0"></span>';
-    html+='<input type="text" id="nomC'+i+'" value="'+c.nom+'" style="flex:1;font-size:13px;padding:6px;border-radius:6px;border:0.5px solid #D3D1C7">';
-    html+='<div style="display:flex;gap:5px" id="colPicker'+i+'">';
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:10px';
+    var dot=document.createElement('span');
+    dot.style.cssText='display:inline-block;width:16px;height:16px;border-radius:50%;background:'+c.couleur+';flex-shrink:0';
+    var inp=document.createElement('input');
+    inp.type='text';
+    inp.id='nomC'+i;
+    inp.value=c.nom;
+    inp.style.cssText='flex:1;font-size:13px;padding:6px;border-radius:6px;border:0.5px solid #D3D1C7';
+    var colDiv=document.createElement('div');
+    colDiv.style.cssText='display:flex;gap:5px';
     cols.forEach(function(col){
-      html+='<span data-idx="'+i+'" data-col="'+col+'" onclick="changerCouleurC(this.dataset.idx,this.dataset.col)" style="display:inline-block;width:22px;height:22px;border-radius:50%;background:'+col+';cursor:pointer;border:'+(c.couleur===col?'3px solid #2C2C2A':'1px solid #ccc')+'"></span>';
+      var sp=document.createElement('span');
+      sp.style.cssText='display:inline-block;width:22px;height:22px;border-radius:50%;background:'+col+';cursor:pointer;border:'+(c.couleur===col?'3px solid #2C2C2A':'1px solid #ccc');
+      sp.dataset.idx=i;
+      sp.dataset.col=col;
+      sp.onclick=function(){changerCouleurC(parseInt(this.dataset.idx),this.dataset.col);};
+      colDiv.appendChild(sp);
     });
-    html+='</div></div>';
+    row.appendChild(dot);
+    row.appendChild(inp);
+    row.appendChild(colDiv);
+    div.appendChild(row);
   });
-  html+='<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">';
-  html+='<button class="btn" onclick="fermerOverlay('overlayDossier')">Annuler</button>';
-  html+='<button class="btn btn-p" onclick="sauverCommerciaux()">Enregistrer</button></div>';
-  modal.innerHTML=html;
+  var btns=document.createElement('div');
+  btns.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:1rem';
+  var btnAnn=document.createElement('button');
+  btnAnn.className='btn';
+  btnAnn.textContent='Annuler';
+  btnAnn.onclick=function(){fermerOverlay('overlayDossier');};
+  var btnSave=document.createElement('button');
+  btnSave.className='btn btn-p';
+  btnSave.textContent='Enregistrer';
+  btnSave.onclick=sauverCommerciaux;
+  btns.appendChild(btnAnn);
+  btns.appendChild(btnSave);
+  div.appendChild(btns);
+  modal.innerHTML='';
+  modal.appendChild(div);
   document.getElementById('overlayDossier').classList.add('open');
 }
 
 function changerCouleurC(idx,couleur){
-  idx=parseInt(idx);
   var bgs={'#185FA5':'#E6F1FB','#3B6D11':'#EAF3DE','#854F0B':'#FAEEDA','#6B2FA0':'#F0E6FA','#A32D2D':'#FCEBEB'};
   COMMERCIAUX[idx].couleur=couleur;
   COMMERCIAUX[idx].bg=bgs[couleur]||'#F5F5F5';
@@ -1038,35 +1061,57 @@ function renderClients(){
   });
   var secteurs=Object.values(secteursMap).sort(function(a,b){return b.montant-a.montant;});
   var totalSect=secteurs.reduce(function(s,x){return s+x.montant;},0);
-  var html='<div style="max-width:900px;margin:0 auto;padding:12px">';
-  html+='<div style="font-size:14px;font-weight:bold;color:#185FA5;margin-bottom:10px">&#127942; Classement clients par CA</div>';
-  html+='<div style="background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden;margin-bottom:20px">';
-  html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
-  html+='<tr style="background:#185FA5;color:#fff"><td style="padding:8px 10px">#</td><td style="padding:8px 10px">Client</td><td style="padding:8px 10px">Secteur</td><td style="padding:8px 10px;text-align:center">Factures</td><td style="padding:8px 10px;text-align:right">CA factur\u00e9</td><td style="padding:8px 10px;text-align:right">Encaiss\u00e9</td></tr>';
+  var div=document.createElement('div');
+  div.style.cssText='max-width:900px;margin:0 auto;padding:12px';
+  var h1=document.createElement('div');
+  h1.style.cssText='font-size:14px;font-weight:bold;color:#185FA5;margin-bottom:10px';
+  h1.textContent='\ud83c\udfc6 Classement clients par CA';
+  div.appendChild(h1);
+  var tblWrap=document.createElement('div');
+  tblWrap.style.cssText='background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden;margin-bottom:20px';
+  var tbl=document.createElement('table');
+  tbl.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
+  tbl.innerHTML='<tr style="background:#185FA5;color:#fff">'
+    +'<td style="padding:8px 10px">#</td>'
+    +'<td style="padding:8px 10px">Client</td>'
+    +'<td style="padding:8px 10px">Secteur</td>'
+    +'<td style="padding:8px 10px;text-align:center">Factures</td>'
+    +'<td style="padding:8px 10px;text-align:right">CA factur\u00e9</td>'
+    +'<td style="padding:8px 10px;text-align:right">Encaiss\u00e9</td></tr>';
   clients.forEach(function(c,i){
-    var bg=i%2===0?'#fff':'#F8F7F4';
-    var medal=i===0?'&#127947;':i===1?'&#129352;':i===2?'&#129353;':'';
-    html+='<tr style="background:'+bg+'"><td style="padding:7px 10px;color:#888780">'+(i+1)+medal+'</td>';
-    html+='<td style="padding:7px 10px;font-weight:bold">'+c.nom+'</td>';
-    html+='<td style="padding:7px 10px;color:#888780">'+c.secteur+'</td>';
-    html+='<td style="padding:7px 10px;text-align:center"><span style="background:#E6F1FB;color:#185FA5;padding:2px 8px;border-radius:999px;font-weight:bold">'+c.factures+'</span></td>';
-    html+='<td style="padding:7px 10px;text-align:right;font-weight:bold;color:#185FA5">'+fmt(c.montantTotal)+'</td>';
-    html+='<td style="padding:7px 10px;text-align:right;font-weight:bold;color:#3B6D11">'+fmt(c.encaisse)+'</td></tr>';
+    var tr=document.createElement('tr');
+    tr.style.background=i%2===0?'#fff':'#F8F7F4';
+    var medal=i===0?'\ud83e\udd47':i===1?'\ud83e\udd48':i===2?'\ud83e\udd49':'';
+    tr.innerHTML='<td style="padding:7px 10px;color:#888780">'+(i+1)+medal+'</td>'
+      +'<td style="padding:7px 10px;font-weight:bold">'+c.nom+'</td>'
+      +'<td style="padding:7px 10px;color:#888780">'+c.secteur+'</td>'
+      +'<td style="padding:7px 10px;text-align:center"><span style="background:#E6F1FB;color:#185FA5;padding:2px 8px;border-radius:999px;font-weight:bold">'+c.factures+'</span></td>'
+      +'<td style="padding:7px 10px;text-align:right;font-weight:bold;color:#185FA5">'+fmt(c.montantTotal)+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-weight:bold;color:#3B6D11">'+fmt(c.encaisse)+'</td>';
+    tbl.appendChild(tr);
   });
-  html+='</table></div>';
-  html+='<div style="font-size:14px;font-weight:bold;color:#185FA5;margin-bottom:10px">&#128202; CA par secteur</div>';
-  html+='<div style="background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;padding:14px">';
+  tblWrap.appendChild(tbl);
+  div.appendChild(tblWrap);
+  var h2=document.createElement('div');
+  h2.style.cssText='font-size:14px;font-weight:bold;color:#185FA5;margin-bottom:10px';
+  h2.textContent='\ud83d\udcca CA par secteur';
+  div.appendChild(h2);
+  var sectDiv=document.createElement('div');
+  sectDiv.style.cssText='background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;padding:14px';
   secteurs.forEach(function(s){
     var pct=totalSect>0?Math.round(s.montant/totalSect*100):0;
-    html+='<div style="margin-bottom:12px">';
-    html+='<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">';
-    html+='<span style="font-weight:bold">'+s.nom+'</span>';
-    html+='<span style="color:#888780">'+s.nb+' facture(s) \u00b7 '+fmt(s.montant)+' ('+pct+'%)</span></div>';
-    html+='<div style="background:#F1EFE8;border-radius:999px;height:8px;overflow:hidden">';
-    html+='<div style="background:#185FA5;height:100%;width:'+pct+'%;border-radius:999px"></div></div></div>';
+    var row=document.createElement('div');
+    row.style.marginBottom='12px';
+    row.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">'
+      +'<span style="font-weight:bold">'+s.nom+'</span>'
+      +'<span style="color:#888780">'+s.nb+' facture(s) \u00b7 '+fmt(s.montant)+' ('+pct+'%)</span></div>'
+      +'<div style="background:#F1EFE8;border-radius:999px;height:8px;overflow:hidden">'
+      +'<div style="background:#185FA5;height:100%;width:'+pct+'%;border-radius:999px"></div></div>';
+    sectDiv.appendChild(row);
   });
-  html+='</div></div>';
-  el.innerHTML=html;
+  div.appendChild(sectDiv);
+  el.innerHTML='';
+  el.appendChild(div);
 }
 
 charger();
