@@ -181,9 +181,9 @@ const SB = supabase.createClient(
   'sb_publishable_aa-fC7neU8yHo2nFLO3LFA_saTkf_IS'
 );
 const PASS = {
-  'MarleneGP26':'admin',
-  'DirectionGP26':'contributeur',
-  'ComptaGP26':'comptable'
+  'GraphicPrint2026':'admin',
+  'GpContrib2026':'contributeur',
+  'GpCompta2026':'comptable'
 };
 const STAGES = [
   {id:0,label:'Accueil & tarification',short:'Tarification',cls:'s0'},
@@ -396,7 +396,7 @@ function renderBoard(){
         var enc=totalEnc(d);
         var pct=d.montant>0?Math.min(100,Math.round(enc/d.montant*100)):0;
         var retard=d.etape>=4&&getZone(d)==='urgent';
-        return '<div class="card" onclick="ouvrirDetail(\''+d.id+'\')">'+
+        return '<div class="card" onclick="ouvrirDetail(\''+d.id+'\')" style='border-left:4px solid '+getC(d.commercial).couleur+';border-radius:0 6px 6px 0'>'+
           '<div class="card-client">'+( d.client||'')+'</div>'+
           '<div class="card-amount">'+fmt(d.montant)+'</div>'+
           '<div style="font-size:10px;color:#888780">'+(d.objet||'').slice(0,26)+((d.objet||'').length>26?'…':'')+'</div>'+
@@ -487,7 +487,7 @@ function ouvrirDetail(id){
     (avecV?'<span class="pill p-pur">Acomptes</span>':'')+
     '</div>'+
     '<table style="width:100%;font-size:12px;border-collapse:collapse">'+
-    [['Prestation',d.objet||'—'],['Montant total',fmt(d.montant)],
+    [['Commercial','<span style="font-weight:bold;color:'+getC(d.commercial).couleur+'">'+nomC(d.commercial)+'</span>'],['Prestation',d.objet||'—'],['Montant total',fmt(d.montant)],
      ['Date facture',d.date_facture||'—'],['Échéance',d.echeance||'—'],
      ['Preuve client',d.preuve_client||'—'],
      ['Relances',rl.length+(rl.length?' ('+rl.join(', ')+')':(': aucune'))],
@@ -707,6 +707,9 @@ function afficherFormDossier(d){
     '<h3>'+(G_EDITING?'Modifier le dossier':'Nouveau dossier')+'</h3>'+
     '<div class="fr2">'+
     '<div class="fr"><label>N° Dossier</label><input id="fNum" value="'+defNum+'"></div>'+
+    '<div class="fr"><label>Commercial</label><select id="fComm">'+
+    COMMERCIAUX.map(function(c){return '<option value="'+c.id+'"'+(d.commercial===c.id?' selected':'')+'>'+c.nom+'</option>';}).join('')+
+    '</select></div>'+
     '<div class="fr"><label>Secteur</label><select id="fSect">'+
     ['Banque / Finance','Administration publique','Télécoms','ONG / Org. internationale','Hôtellerie / Tourisme','Industrie / BTP','Autre'].map(function(s){return '<option'+(d.secteur===s?' selected':'')+'>'+s+'</option>';}).join('')+
     '</select></div></div>'+
@@ -732,6 +735,7 @@ async function sauvegarderFormDossier(){
   if(!num||!client||!montant){alert('N° dossier, client et montant sont obligatoires.');return;}
   var data={
     num:num, client:client,
+    commercial:document.getElementById('fComm')?document.getElementById('fComm').value:'C1',
     secteur:document.getElementById('fSect').value,
     objet:document.getElementById('fObjet').value,
     montant:montant,
