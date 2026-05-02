@@ -943,6 +943,23 @@ var COMMERCIAUX=[
   {id:'C4',nom:'Commercial 4',couleur:'#6B2FA0',bg:'#F0E6FA'},
   {id:'C5',nom:'Commercial 5',couleur:'#A32D2D',bg:'#FCEBEB'},
 ];
+// Charger les noms sauvegardés depuis localStorage
+(function(){
+  try {
+    var saved = localStorage.getItem('gp_commerciaux');
+    if(saved){
+      var data = JSON.parse(saved);
+      data.forEach(function(s){
+        var c = COMMERCIAUX.find(function(x){return x.id===s.id;});
+        if(c){
+          if(s.nom) c.nom=s.nom;
+          if(s.couleur) c.couleur=s.couleur;
+          if(s.bg) c.bg=s.bg;
+        }
+      });
+    }
+  } catch(e){}
+})();
 function getC(id){return COMMERCIAUX.find(function(c){return c.id===id;})||COMMERCIAUX[0];}
 function nomC(id){return getC(id).nom;}
 
@@ -1063,6 +1080,12 @@ function sauverCommerciaux(){
   var sel=document.getElementById('filterComm');
   if(sel) sel.innerHTML='<option value="">Tous commerciaux</option>'+
     COMMERCIAUX.map(function(c){return '<option value="'+c.id+'">'+c.nom+'</option>';}).join('');
+  // Persister dans localStorage
+  try {
+    localStorage.setItem('gp_commerciaux', JSON.stringify(
+      COMMERCIAUX.map(function(c){return {id:c.id,nom:c.nom,couleur:c.couleur,bg:c.bg};})
+    ));
+  } catch(e){}
   alert('Commerciaux mis \u00e0 jour !');
 }
 
