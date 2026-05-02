@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graphic Print — Gestion commerciale</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#F8F7F4;color:#2C2C2A;font-size:14px}
+.topbar{background:#185FA5;color:#fff;padding:10px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.topbar-title{font-size:14px;font-weight:bold;flex:1}
+.badge{display:inline-block;padding:3px 11px;border-radius:999px;font-size:11px;font-weight:bold}
+.badge-lecture{background:rgba(255,255,255,.18);color:#fff}
+.badge-contrib{background:#FAEEDA;color:#633806}
+.badge-compta{background:#EAF3DE;color:#27500A}
+.badge-admin{background:#E6F1FB;color:#0C447C}
+.btn-top{font-size:12px;padding:5px 12px;border-radius:6px;border:0.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;cursor:pointer}
+.btn-top:hover{background:rgba(255,255,255,.25)}
+.banner{padding:7px 20px;font-size:12px;display:flex;align-items:center;gap:8px}
+.banner-contrib{background:#FAEEDA;border-bottom:1px solid #FAC775;color:#633806}
+.banner-compta{background:#EAF3DE;border-bottom:1px solid #97C459;color:#27500A}
+.container{max-width:1100px;margin:0 auto;padding:16px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;padding:12px 14px}
+.kpi-l{font-size:11px;color:#888780;margin-bottom:4px}
+.kpi-v{font-size:20px;font-weight:bold}
+.kpi-v.blu{color:#185FA5}.kpi-v.red{color:#A32D2D}.kpi-v.grn{color:#3B6D11}.kpi-v.ora{color:#854F0B}
+.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.toolbar input,.toolbar select{font-size:13px;padding:6px 10px;border-radius:6px;border:0.5px solid #D3D1C7;background:#fff;color:#2C2C2A}
+.toolbar input{flex:1;min-width:180px}
+.btn{font-size:12px;padding:6px 14px;border-radius:6px;border:0.5px solid #D3D1C7;background:#fff;color:#2C2C2A;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#F1EFE8}
+.btn-p{background:#185FA5;color:#fff;border-color:#185FA5}.btn-p:hover{background:#0C447C}
+.btn-g{background:#3B6D11;color:#fff;border-color:#3B6D11}.btn-g:hover{background:#27500A}
+.btn-r{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+.btn-o{background:#FAEEDA;color:#633806;border-color:#FAC775}
+.btn-sm{font-size:11px;padding:3px 9px}
+.btn:disabled{opacity:.4;cursor:default}
+.stages{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:24px}
+.stage-col{min-width:0}
+.stage-head{font-size:11px;font-weight:bold;padding:6px;border-radius:6px;margin-bottom:6px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s0{background:#E1F5EE;color:#085041}.s1{background:#E1F5EE;color:#085041}
+.s2{background:#EEEDFE;color:#3C3489}.s3{background:#FAEEDA;color:#633806}
+.s4{background:#E6F1FB;color:#0C447C}.s5{background:#EAF3DE;color:#27500A}
+.card{background:#fff;border:0.5px solid #D3D1C7;border-radius:6px;padding:8px;margin-bottom:5px;cursor:pointer;font-size:12px}
+.card:hover{border-color:#185FA5;background:#F8F7F4}
+.card-client{font-weight:bold;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-amount{color:#185FA5;font-size:11px;margin-bottom:2px}
+.pill{display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:bold;margin-top:3px}
+.p-red{background:#FCEBEB;color:#A32D2D}.p-ora{background:#FAEEDA;color:#854F0B}
+.p-grn{background:#EAF3DE;color:#3B6D11}.p-blu{background:#E6F1FB;color:#185FA5}
+.p-pur{background:#EEEDFE;color:#3C3489}
+.empty-col{text-align:center;padding:10px 4px;font-size:11px;color:#888780}
+.tabs{display:flex;border-bottom:2px solid #185FA5;margin-bottom:16px}
+.tab{padding:8px 18px;font-size:13px;cursor:pointer;color:#888780;border-bottom:2px solid transparent;margin-bottom:-2px}
+.tab.active{color:#185FA5;font-weight:bold;border-bottom-color:#185FA5}
+.tab-content{display:none}.tab-content.active{display:block}
+.section-title{font-size:13px;font-weight:bold;margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-red{background:#E24B4A}.dot-ora{background:#EF9F27}.dot-grn{background:#1D9E75}.dot-pur{background:#7F77DD}
+.drow{background:#fff;border:0.5px solid #D3D1C7;border-radius:6px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:flex-start;gap:10px}
+.drow.urgent{border-left:3px solid #E24B4A;border-radius:0 6px 6px 0}
+.drow.proche{border-left:3px solid #EF9F27;border-radius:0 6px 6px 0}
+.drow.ok-z{border-left:3px solid #1D9E75;border-radius:0 6px 6px 0}
+.dr-main{flex:1;min-width:0}
+.dr-client{font-size:13px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-sub{font-size:11px;color:#888780;margin-top:1px}
+.action-row{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;align-items:center}
+.empty{text-align:center;padding:10px;font-size:12px;color:#888780;background:#F8F7F4;border-radius:6px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:flex-start;justify-content:center;padding-top:30px;overflow-y:auto}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:10px;border:0.5px solid #D3D1C7;padding:1.5rem;width:560px;max-width:96vw;max-height:88vh;overflow-y:auto}
+.modal h3{font-size:15px;font-weight:bold;margin-bottom:.25rem;color:#185FA5}
+.modal-sub{font-size:12px;color:#888780;margin-bottom:1rem}
+.fr{margin-bottom:10px}
+.fr label{display:block;font-size:11px;color:#888780;margin-bottom:3px}
+.fr input,.fr select,.fr textarea{width:100%;font-size:13px;padding:6px 9px;border-radius:6px;border:0.5px solid #D3D1C7;background:#fff;color:#2C2C2A}
+.fr textarea{height:56px;resize:vertical}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fa{display:flex;gap:8px;justify-content:flex-end;margin-top:1rem}
+.sep{border:none;border-top:0.5px solid #D3D1C7;margin:.75rem 0}
+.tag-lecture{font-size:11px;color:#888780;font-style:italic}
+.spinner{text-align:center;padding:2rem;color:#888780}
+.sync-badge{font-size:10px;padding:2px 8px;border-radius:999px;background:#EAF3DE;color:#3B6D11;margin-left:8px}
+.prog-wrap{background:#F1EFE8;border-radius:999px;height:8px;margin:5px 0;overflow:hidden}
+.prog-fill{height:100%;border-radius:999px;background:#3B6D11;transition:width .3s}
+.v-item{background:#F8F7F4;border:0.5px solid #D3D1C7;border-radius:6px;padding:9px 12px;margin-bottom:6px}
+.v-item.v-ok{background:#EAF3DE;border-color:#97C459}
+.v-item.v-late{background:#FCEBEB;border-color:#F09595}
+.recap-box{background:#E6F1FB;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px}
+.recap-box b{color:#185FA5}
+@media print{.topbar,.toolbar,.tabs,.kpi-row,.stages,.section-title,.action-row,.overlay,.btn,.tab,#tab-recouvrement,.banner{display:none!important}#printZone{display:block!important}}
+#printZone{display:none}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-title">GRAPHIC PRINT — Gestion commerciale <span class="sync-badge" id="syncBadge">Synchronisé</span></div>
+  <span id="modeBadge" class="badge badge-lecture">Mode lecture</span>
+  <button class="btn-top" id="btnConnexion" onclick="ouvrirLogin()">Connexion</button>
+  <button class="btn-top" id="btnLogout" onclick="seDeconnecter()" style="display:none">Déconnexion</button>
+</div>
+<div class="banner banner-contrib" id="contribBanner" style="display:none">Connecté en mode <strong>Contributeur</strong> — avancer les étapes, valider client, enregistrer paiements</div>
+<div class="banner banner-compta" id="comptaBanner" style="display:none">Connecté en mode <strong>Comptable</strong> — enregistrement et confirmation des paiements</div>
+
+<div class="container">
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('pipeline',this)">Pipeline commercial</div>
+  <div class="tab" onclick="switchTab('recouvrement',this)">Recouvrement</div>
+  <div class="tab" id="tabCommercial" onclick="switchTab('commerciaux',this)">&#128100; Commerciaux</div>
+  <div class="tab" id="tabClient" onclick="switchTab('clients',this)">&#127970; Clients</div>
+</div>
+
+<div class="tab-content active" id="tab-pipeline">
+  <div class="kpi-row" id="kpiRow"><div class="spinner">Chargement...</div></div>
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="Client, n° dossier..." oninput="renderBoard()">
+    <select id="filterSect" onchange="renderBoard()">
+      <option value="">Tous secteurs</option>
+      <option>Banque / Finance</option><option>Administration publique</option>
+      <option>Télécoms</option><option>ONG / Org. internationale</option>
+      <option>Hôtellerie / Tourisme</option><option>Industrie / BTP</option><option>Autre</option>
+    </select>
+    <button class="btn btn-p" id="btnNouveauDossier" onclick="ouvrirNouveauDossier()" disabled>+ Nouveau dossier</button>
+  </div>
+  <div class="stages" id="board"><div class="spinner" style="grid-column:1/-1">Chargement...</div></div>
+</div>
+
+<div class="tab-content" id="tab-commerciaux"></div>
+<div class="tab-content" id="tab-clients"></div>
+<div class="tab-content" id="tab-recouvrement">
+  <div class="kpi-row" id="kpiRecRow"></div>
+  <div class="section-title"><span class="dot dot-red"></span>Action requise — échéance dépassée</div>
+  <div id="zone-urgent"></div>
+  <div class="section-title"><span class="dot dot-ora"></span>Échéance dans moins de 7 jours</div>
+  <div id="zone-proche"></div>
+  <div class="section-title"><span class="dot dot-grn"></span>En cours — dans les délais</div>
+  <div id="zone-ok"></div>
+  <div class="section-title"><span class="dot dot-pur"></span>Archives — Dossiers soldés</div>
+  <div id="zone-archive"></div>
+</div>
+</div>
+
+<!-- LOGIN -->
+<div class="overlay" id="overlayLogin">
+<div class="modal" style="max-width:340px;text-align:center">
+  <h3>Connexion</h3>
+  <p style="font-size:12px;color:#888780;margin-bottom:1.2rem">Saisissez votre mot de passe.</p>
+  <div class="fr" style="text-align:left">
+    <input type="password" id="pwdInput" placeholder="Mot de passe"
+      onkeydown="event.stopPropagation();if(event.key==='Enter')validerLogin()"
+      onkeyup="event.stopPropagation()" oninput="event.stopPropagation()">
+  </div>
+  <div id="loginErr" style="color:#A32D2D;font-size:12px;margin-bottom:8px;display:none">Mot de passe incorrect.</div>
+  <div class="fa" style="justify-content:center">
+    <button class="btn" onclick="fermerOverlay('overlayLogin')">Annuler</button>
+    <button class="btn btn-p" onclick="validerLogin()">Se connecter</button>
+  </div>
+  <hr class="sep">
+  <div style="font-size:11px;color:#888780;text-align:left">
+    <strong style="display:block;margin-bottom:4px;color:#2C2C2A">Niveaux d'accès</strong>
+    Admin (Marlène) : accès complet<br>
+    Contributeur (Mme Bove / DG) : suivi & saisie<br>
+    Comptable : confirmation des paiements<br>
+    Lecture : consultation & impression PDF
+  </div>
+</div>
+</div>
+
+<div class="overlay" id="overlayDossier"><div class="modal" id="modalDossier"></div></div>
+<div class="overlay" id="overlayVersement"><div class="modal" id="modalVersement"></div></div>
+<div id="printZone"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════════════
+const SB = supabase.createClient(
+  'https://wfbdygrvvnaiwesefwmk.supabase.co',
+  'sb_publishable_aa-fC7neU8yHo2nFLO3LFA_saTkf_IS'
+);
+const PASS = {
+  'GraphicPrint2026':'admin',
+  'GpContrib2026':'contributeur',
+  'GpCompta2026':'comptable'
+};
+const STAGES = [
+  {id:0,label:'Accueil & tarification',short:'Tarification',cls:'s0'},
+  {id:1,label:'Validation interne',short:'Valid. interne',cls:'s1'},
+  {id:2,label:'Proforma émise',short:'Proforma',cls:'s2'},
+  {id:3,label:'Validation client',short:'Client OK ?',cls:'s3'},
+  {id:4,label:'Facture émise',short:'Facturé',cls:'s4'},
+  {id:5,label:'Soldé',short:'Soldé ✓',cls:'s5'},
+];
+
+// ══════════════════════════════════════════════════════════
+//  ÉTAT GLOBAL — variables var pour accessibilité onclick
+// ══════════════════════════════════════════════════════════
+var G_ROLE = 'lecture';
+var G_DOSSIERS = [];
+var G_EDITING = null;
+
+// ══════════════════════════════════════════════════════════
+//  DROITS
+// ══════════════════════════════════════════════════════════
+var DR = {
+  creer:    function(){ return G_ROLE==='admin'; },
+  modifier: function(){ return G_ROLE==='admin'; },
+  supprimer:function(){ return G_ROLE==='admin'; },
+  avancer:  function(){ return G_ROLE==='admin'||G_ROLE==='contributeur'; },
+  valClient:function(){ return G_ROLE==='admin'||G_ROLE==='contributeur'; },
+  paiement: function(){ return G_ROLE==='admin'||G_ROLE==='contributeur'||G_ROLE==='comptable'; },
+  relancer: function(){ return G_ROLE==='admin'||G_ROLE==='contributeur'; }
+};
+
+// ══════════════════════════════════════════════════════════
+//  UTILITAIRES
+// ══════════════════════════════════════════════════════════
+function fmt(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0))+' FCFA'; }
+
+function daysTo(dateStr){
+  if(!dateStr) return 9999;
+  var t=new Date(); t.setHours(0,0,0,0);
+  var e=new Date(dateStr); e.setHours(0,0,0,0);
+  return Math.floor((e-t)/86400000);
+}
+
+// Normaliser un versement : compatibilité paye/recu
+function normV(v){
+  // "recu" est le nouveau champ, "paye" l'ancien — on supporte les deux
+  var recu = v.recu===true || v.paye===true;
+  return Object.assign({}, v, {recu: recu});
+}
+
+// Versements normalisés d'un dossier
+function getVersements(d){
+  if(!d.versements || d.versements.length===0) return [];
+  return d.versements.map(normV);
+}
+
+// Total encaissé
+function totalEnc(d){
+  var vs = getVersements(d);
+  if(vs.length===0){
+    return d.paye ? (parseFloat(d.paiement && d.paiement.montantRecu)||parseFloat(d.montant)||0) : 0;
+  }
+  return vs.filter(function(v){ return v.recu; })
+           .reduce(function(s,v){ return s+(parseFloat(v.montantRecu||v.montant)||0); }, 0);
+}
+
+// Dossier soldé : montant total encaissé >= montant facturé
+function estSolde(d){
+  var enc = totalEnc(d);
+  var montant = parseFloat(d.montant)||0;
+  if(montant===0) return false;
+  // Soldé si encaissé couvre 100% du montant facturé
+  return enc >= montant;
+}
+
+// Prochaine échéance : prochain versement non reçu, sinon échéance globale
+function prochaineEch(d){
+  var vs = getVersements(d);
+  if(vs.length>0){
+    var suivants = vs.filter(function(v){ return !v.recu; })
+                    .sort(function(a,b){ return new Date(a.echeance||'9999')-new Date(b.echeance||'9999'); });
+    return suivants.length ? (suivants[0].echeance||null) : null;
+  }
+  return d.echeance||null;
+}
+
+// Zone recouvrement
+function getZone(d){
+  var ech = prochaineEch(d);
+  if(!ech) return 'ok';
+  var j = daysTo(ech);
+  if(j<0) return 'urgent';
+  if(j<=7) return 'proche';
+  return 'ok';
+}
+
+function sync(ok){
+  var b=document.getElementById('syncBadge');
+  if(!b) return;
+  b.textContent=ok?'Synchronisé':'Erreur sync';
+  b.style.background=ok?'#EAF3DE':'#FCEBEB';
+  b.style.color=ok?'#3B6D11':'#A32D2D';
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════════════
+function ouvrirLogin(){
+  document.getElementById('pwdInput').value='';
+  document.getElementById('loginErr').style.display='none';
+  document.getElementById('overlayLogin').classList.add('open');
+  setTimeout(function(){ document.getElementById('pwdInput').focus(); },150);
+}
+
+function validerLogin(){
+  var r=PASS[document.getElementById('pwdInput').value];
+  if(r){ G_ROLE=r; fermerOverlay('overlayLogin'); majUI(); charger(); }
+  else document.getElementById('loginErr').style.display='block';
+}
+
+function seDeconnecter(){ G_ROLE='lecture'; majUI(); }
+
+function majUI(){
+  var badges={lecture:'badge-lecture',contributeur:'badge-contrib',comptable:'badge-compta',admin:'badge-admin'};
+  var labels={lecture:'Mode lecture',contributeur:'Contributeur',comptable:'Comptable',admin:'Administrateur'};
+  var mb=document.getElementById('modeBadge');
+  mb.className='badge '+badges[G_ROLE]; mb.textContent=labels[G_ROLE];
+  document.getElementById('btnConnexion').style.display=G_ROLE==='lecture'?'':'none';
+  document.getElementById('btnLogout').style.display=G_ROLE!=='lecture'?'':'none';
+  document.getElementById('contribBanner').style.display=G_ROLE==='contributeur'?'':'none';
+  document.getElementById('comptaBanner').style.display=G_ROLE==='comptable'?'':'none';
+  document.getElementById('btnNouveauDossier').disabled=!DR.creer();
+  renderBoard();
+  renderRecouvrement();
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.tab-content').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='commerciaux') renderCommerciaux();
+  if(name==='clients') renderClients();
+}
+
+// ══════════════════════════════════════════════════════════
+//  DONNÉES
+// ══════════════════════════════════════════════════════════
+async function charger(){
+  try{
+    var res = await SB.from('dossiers').select('*').order('cree_le',{ascending:false});
+    if(res.error) throw res.error;
+    G_DOSSIERS = res.data||[];
+    sync(true);
+  }catch(e){ console.error('Erreur chargement:',e); sync(false); }
+  renderBoard();
+  renderRecouvrement();
+}
+setInterval(charger,30000);
+
+async function sauver(id, updates){
+  try{
+    var res = await SB.from('dossiers').update(updates).eq('id',id);
+    if(res.error) throw res.error;
+    await charger();
+    return true;
+  }catch(e){
+    alert('Erreur sauvegarde: '+e.message);
+    return false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  PIPELINE
+// ══════════════════════════════════════════════════════════
+function renderBoard(){
+  var q=(document.getElementById('searchInput')||{value:''}).value.toLowerCase();
+  var sect=(document.getElementById('filterSect')||{value:''}).value;
+  var filtered=G_DOSSIERS.filter(function(d){
+    return ((d.client||'').toLowerCase().includes(q)||(d.num||'').toLowerCase().includes(q)||(d.objet||'').toLowerCase().includes(q))
+      &&(!sect||d.secteur===sect);
+  });
+
+  var actifs=G_DOSSIERS.filter(function(d){ return !estSolde(d); });
+  var soldes=G_DOSSIERS.filter(function(d){ return estSolde(d); });
+  var encours=actifs.reduce(function(s,d){ return s+(parseFloat(d.montant)||0); },0);
+  var enRetard=actifs.filter(function(d){ return d.etape>=4&&getZone(d)==='urgent'; });
+
+  document.getElementById('kpiRow').innerHTML=
+    '<div class="kpi"><div class="kpi-l">Pipeline actif</div><div class="kpi-v blu">'+fmt(encours)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Non convertis en facture</div><div class="kpi-v ora">'+fmt(actifs.filter(function(d){return d.etape<4;}).reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0))+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Convertis en facture</div><div class="kpi-v blu">'+fmt(actifs.filter(function(d){return d.etape>=4;}).reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0))+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Montant soldé</div><div class="kpi-v grn">'+fmt(soldes.reduce(function(s,d){return s+totalEnc(d);},0))+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">En retard</div><div class="kpi-v red">'+fmt(enRetard.reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0))+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Dossiers actifs</div><div class="kpi-v">'+actifs.length+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Att. client</div><div class="kpi-v ora">'+G_DOSSIERS.filter(function(d){return d.etape===3&&!estSolde(d);}).length+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Soldés</div><div class="kpi-v grn">'+soldes.length+'</div></div>';
+
+  document.getElementById('board').innerHTML=STAGES.map(function(st){
+    var cards;
+    if(st.id===5){
+      cards=filtered.filter(function(d){ return estSolde(d); });
+    } else {
+      cards=filtered.filter(function(d){ return d.etape===st.id&&!estSolde(d); });
+    }
+    if(cards.length===0) return '<div class="stage-col"><div class="stage-head '+st.cls+'">'+st.short+'</div><div class="empty-col">—</div></div>';
+    return '<div class="stage-col"><div class="stage-head '+st.cls+'">'+st.short+'</div>'+
+      cards.map(function(d){
+        var vs=getVersements(d);
+        var avecV=vs.length>0;
+        var enc=totalEnc(d);
+        var pct=d.montant>0?Math.min(100,Math.round(enc/d.montant*100)):0;
+        var retard=d.etape>=4&&getZone(d)==='urgent';
+        return '<div class="card" onclick="ouvrirDetail(\''+d.id+'\')">'+
+          '<div class="card-client">'+( d.client||'')+'</div>'+
+          '<div class="card-amount">'+fmt(d.montant)+'</div>'+
+          '<div style="font-size:10px;color:#888780">'+(d.objet||'').slice(0,26)+((d.objet||'').length>26?'…':'')+'</div>'+
+          (avecV?'<div class="prog-wrap"><div class="prog-fill" style="width:'+pct+'%"></div></div><div style="font-size:9px;color:#888780">'+pct+'% · '+vs.filter(function(v){return v.recu;}).length+'/'+vs.length+' versements</div>':'')+
+          (retard?'<span class="pill p-red">Retard</span>':'')+
+          (d.etape===3&&!estSolde(d)?'<span class="pill p-ora">Att. client</span>':'')+
+          (avecV?'<span class="pill p-pur">Acomptes</span>':'')+
+          (estSolde(d)?'<span class="pill p-grn">Soldé ✓</span>':'')+
+          '</div>';
+      }).join('')+'</div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+//  DÉTAIL DOSSIER
+// ══════════════════════════════════════════════════════════
+function ouvrirDetail(id){
+  var d=G_DOSSIERS.find(function(x){ return x.id===id; });
+  if(!d){ alert('Dossier introuvable'); return; }
+
+  var vs=getVersements(d);
+  var avecV=vs.length>0;
+  var solde=estSolde(d);
+  var enc=totalEnc(d);
+  var restant=Math.max(0,(parseFloat(d.montant)||0)-enc);
+  var pct=d.montant>0?Math.min(100,Math.round(enc/d.montant*100)):0;
+  var etape=d.etape||0;
+  var rl=d.relances||[];
+
+  // Boutons d'action
+  var btns='';
+  if(DR.avancer()&&etape<4&&!solde)
+    btns+='<button class="btn btn-g btn-sm" onclick="avancer(\''+d.id+'\')">Avancer → '+STAGES[Math.min(etape+1,4)].short+'</button>';
+  if(DR.valClient()&&etape===3&&!solde)
+    btns+='<button class="btn btn-o btn-sm" onclick="confirmerClient(\''+d.id+'\')">Valider confirmation client</button>';
+  if(DR.paiement()&&etape>=4&&!solde){
+    if(avecV)
+      btns+='<button class="btn btn-g btn-sm" onclick="ouvrirSaisieVersement(\''+d.id+'\',\'\')">+ Encaisser versement</button>';
+    else{
+      btns+='<button class="btn btn-g btn-sm" onclick="ouvrirSaisieVersement(\''+d.id+'\',\'\')">Encaisser paiement</button>';
+      btns+='<button class="btn btn-sm btn-o" onclick="activerAcomptes(\''+d.id+'\')">Mode acomptes</button>';
+    }
+    if(avecV)
+      btns+='<button class="btn btn-sm btn-o" onclick="ajouterVersement(\''+d.id+'\')">+ Ajouter versement</button>';
+  }
+  if(DR.relancer()&&etape>=4&&!solde)
+    btns+='<button class="btn btn-sm" onclick="relancer(\''+d.id+'\')">Relancer</button>';
+  if(DR.modifier()&&!solde)
+    btns+='<button class="btn btn-sm" onclick="ouvrirEdition(\''+d.id+'\')">Modifier</button>';
+  if(DR.supprimer())
+    btns+='<button class="btn btn-sm btn-r" onclick="supprimerDossier(\''+d.id+'\')">Supprimer</button>';
+  if(!btns) btns='<span class="tag-lecture">Lecture seule</span>';
+
+  // Section acomptes
+  var sectionV='';
+  if(avecV){
+    sectionV='<hr class="sep"><div style="font-weight:bold;color:#185FA5;font-size:13px;margin-bottom:8px">Plan de paiement — Acomptes</div>'+
+      '<div class="recap-box"><b>Récapitulatif</b><table style="width:100%;margin-top:6px">'+
+      '<tr><td>Montant total facturé</td><td style="text-align:right">'+fmt(d.montant)+'</td></tr>'+
+      '<tr><td>Total encaissé</td><td style="text-align:right;color:#3B6D11"><b>'+fmt(enc)+'</b></td></tr>'+
+      '<tr><td>Restant dû</td><td style="text-align:right;color:'+(restant>0?'#A32D2D':'#3B6D11')+'"><b>'+fmt(restant)+'</b></td></tr>'+
+      '</table><div class="prog-wrap" style="margin-top:8px"><div class="prog-fill" style="width:'+pct+'%"></div></div>'+
+      '<div style="font-size:10px;color:#888780;margin-top:3px">'+pct+'% — '+vs.filter(function(v){return v.recu;}).length+'/'+vs.length+' versement(s) reçu(s)</div></div>'+
+      vs.sort(function(a,b){return a.ordre-b.ordre;}).map(function(v,i){
+        var retardV=v.echeance&&daysTo(v.echeance)<0&&!v.recu;
+        var cls=v.recu?' v-ok':retardV?' v-late':'';
+        return '<div class="v-item'+cls+'">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
+          '<span style="font-weight:bold;font-size:12px">'+(v.label||'Versement '+(i+1))+'</span>'+
+          '<span style="font-weight:bold;color:#185FA5">'+fmt(v.montant)+'</span></div>'+
+          '<div style="font-size:11px;color:#888780">Échéance : '+(v.echeance||'—')+
+          (v.recu?' · <strong style="color:#3B6D11">✓ Reçu le '+(v.dateReception||'—')+' — '+fmt(v.montantRecu||v.montant)+'</strong>':'')+
+          (retardV?' · <strong style="color:#A32D2D">'+Math.abs(daysTo(v.echeance))+'j de retard</strong>':'')+
+          '</div>'+
+          (v.ref?'<div style="font-size:11px;color:#185FA5;font-weight:bold;margin-top:2px">Réf : '+v.ref+(v.banque?' · '+v.banque:'')+'</div>':'')+
+          (v.obs?'<div style="font-size:11px;color:#888780;margin-top:2px">'+v.obs+'</div>':'')+
+          (!v.recu&&DR.paiement()?'<button class="btn btn-g btn-sm" style="margin-top:6px" onclick="ouvrirSaisieVersement(\''+d.id+'\',\''+v.id+'\')">Confirmer ce versement</button>':'')+
+          '</div>';
+      }).join('');
+  }
+
+  document.getElementById('modalDossier').innerHTML=
+    '<h3>'+(d.num||'')+' — '+(d.client||'')+'</h3>'+
+    '<div class="modal-sub">'+(d.secteur||'')+'</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem">'+
+    '<span class="pill p-blu">'+STAGES[Math.min(etape,5)].label+'</span>'+
+    (solde?'<span class="pill p-grn">Soldé ✓</span>':'')+
+    (avecV?'<span class="pill p-pur">Acomptes</span>':'')+
+    '</div>'+
+    '<table style="width:100%;font-size:12px;border-collapse:collapse">'+
+    [['Prestation',d.objet||'—'],['Montant total',fmt(d.montant)],
+     ['Date facture',d.date_facture||'—'],['Échéance',d.echeance||'—'],
+     ['Preuve client',d.preuve_client||'—'],
+     ['Relances',rl.length+(rl.length?' ('+rl.join(', ')+')':(': aucune'))],
+     ['Notes',d.notes||'—']
+    ].map(function(r){
+      return '<tr><td style="color:#888780;padding:4px 0;width:38%">'+r[0]+'</td>'+
+             '<td style="padding:4px 0;font-weight:500">'+r[1]+'</td></tr>';
+    }).join('')+'</table>'+
+    sectionV+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:1rem;align-items:center">'+
+    btns+
+    (solde?'<button class="btn btn-sm" onclick="imprimerFiche(\''+d.id+'\')">Imprimer fiche PDF</button>':'')+
+    '<button class="btn btn-sm" style="margin-left:auto" onclick="fermerOverlay(\'overlayDossier\')">Fermer</button>'+
+    '</div>';
+  document.getElementById('overlayDossier').classList.add('open');
+}
+
+// ══════════════════════════════════════════════════════════
+//  ACTIONS DOSSIER
+// ══════════════════════════════════════════════════════════
+async function avancer(id){
+  var d=G_DOSSIERS.find(function(x){return x.id===id;});
+  if(!d) return;
+  fermerOverlay('overlayDossier');
+  await sauver(id,{etape:Math.min((d.etape||0)+1,4)});
+}
+
+async function confirmerClient(id){
+  var preuve=prompt('Preuve de validation client (ex: mail du 29/04, BC n°…) :');
+  if(!preuve) return;
+  var d=G_DOSSIERS.find(function(x){return x.id===id;});
+  if(!d) return;
+  fermerOverlay('overlayDossier');
+  await sauver(id,{preuve_client:preuve,val_client:true,etape:Math.min((d.etape||0)+1,4)});
+}
+
+async function relancer(id){
+  var d=G_DOSSIERS.find(function(x){return x.id===id;});
+  if(!d) return;
+  var today=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var relances=(d.relances||[]).concat([today]);
+  await sauver(id,{relances:relances});
+  alert('Relance n°'+relances.length+' enregistrée.\n\n'+
+    '"Madame, Monsieur,\nSauf erreur de notre part, nous vous relançons concernant notre facture '+d.num+
+    ' d\'un montant de '+fmt(d.montant)+' restée impayée à ce jour.\n'+
+    'Cordialement,\nMarlène — Responsable Commercial — Graphic Print Imprimerie"');
+}
+
+async function supprimerDossier(id){
+  if(!confirm('Supprimer définitivement ce dossier ?')) return;
+  fermerOverlay('overlayDossier');
+  await SB.from('dossiers').delete().eq('id',id);
+  await charger();
+}
+
+// ══════════════════════════════════════════════════════════
+//  ACOMPTES
+// ══════════════════════════════════════════════════════════
+async function activerAcomptes(id){
+  var d=G_DOSSIERS.find(function(x){return x.id===id;});
+  if(!d) return;
+  var versements=[{
+    id:'v_'+Date.now(), ordre:1, label:'Acompte 1',
+    montant:parseFloat(d.montant)||0,
+    echeance:d.echeance||'',
+    recu:false, paye:false, montantRecu:0, ref:'', banque:'', dateReception:'', mode:'', obs:''
+  }];
+  fermerOverlay('overlayDossier');
+  var ok=await sauver(id,{versements:versements});
+  if(ok) ouvrirDetail(id);
+}
+
+async function ajouterVersement(id){
+  var d=G_DOSSIERS.find(function(x){return x.id===id;});
+  if(!d) return;
+  var vs=getVersements(d);
+  var n=vs.length+1;
+  var totalExist=vs.reduce(function(s,v){return s+(parseFloat(v.montant)||0);},0);
+  var restant=Math.max(0,(parseFloat(d.montant)||0)-totalExist);
+  var label=n===1?'Acompte 1':(restant<=(parseFloat(d.montant)||0)*0.3?'Solde':'Acompte '+n);
+  vs.push({
+    id:'v_'+Date.now(), ordre:n, label:label,
+    montant:restant, echeance:'',
+    recu:false, paye:false, montantRecu:0, ref:'', banque:'', dateReception:'', mode:'', obs:''
+  });
+  fermerOverlay('overlayDossier');
+  var ok=await sauver(id,{versements:vs});
+  if(ok) ouvrirDetail(id);
+}
+
+function ouvrirSaisieVersement(dossierId, versementId){
+  var d=G_DOSSIERS.find(function(x){return x.id===dossierId;});
+  if(!d){alert('Dossier introuvable');return;}
+  var vs=getVersements(d);
+
+  // Paiement simple
+  if(vs.length===0){
+    document.getElementById('modalVersement').innerHTML=
+      '<h3>Enregistrement du paiement</h3>'+
+      '<div class="modal-sub">'+d.client+' — '+d.num+' — <strong>'+fmt(d.montant)+'</strong></div>'+
+      '<hr class="sep">'+
+      '<div class="fr2">'+
+      '<div class="fr"><label>Mode de paiement</label><select id="pMode"><option>Virement bancaire</option><option>Chèque</option><option>Espèces</option><option>Paiement mobile</option><option>Autre</option></select></div>'+
+      '<div class="fr"><label>Date de réception</label><input type="date" id="pDate" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+      '</div>'+
+      '<div class="fr"><label>Référence / N° virement ou chèque *</label><input type="text" id="pRef" placeholder="ex: VIR-20260429-00412"></div>'+
+      '<div class="fr2">'+
+      '<div class="fr"><label>Banque émettrice</label><input type="text" id="pBanque"></div>'+
+      '<div class="fr"><label>Montant reçu (FCFA)</label><input type="number" id="pMontant" value="'+d.montant+'"></div>'+
+      '</div>'+
+      '<div class="fr"><label>Observations comptable</label><textarea id="pObs"></textarea></div>'+
+      '<div class="fa">'+
+      '<button class="btn" onclick="fermerOverlay(\'overlayVersement\')">Annuler</button>'+
+      '<button class="btn btn-g" onclick="confirmerPaiementSimple(\''+d.id+'\')">Confirmer</button>'+
+      '</div>';
+    document.getElementById('overlayVersement').classList.add('open');
+    return;
+  }
+
+  // Acompte
+  var v = versementId ? vs.find(function(x){return x.id===versementId;}) : vs.find(function(x){return !x.recu;});
+  if(!v){alert('Tous les versements sont déjà confirmés.');return;}
+
+  document.getElementById('modalVersement').innerHTML=
+    '<h3>Confirmer le versement</h3>'+
+    '<div class="modal-sub">'+d.client+' — '+(v.label||'Versement')+' — <strong>'+fmt(v.montant)+'</strong> attendu</div>'+
+    '<hr class="sep">'+
+    '<div class="fr2">'+
+    '<div class="fr"><label>Label</label><input type="text" id="vLabel" value="'+(v.label||'')+'"></div>'+
+    '<div class="fr"><label>Mode</label><select id="vMode"><option>Virement bancaire</option><option>Chèque</option><option>Espèces</option><option>Paiement mobile</option><option>Autre</option></select></div>'+
+    '</div>'+
+    '<div class="fr2">'+
+    '<div class="fr"><label>Montant attendu (FCFA)</label><input type="number" id="vMontantA" value="'+v.montant+'"></div>'+
+    '<div class="fr"><label>Montant reçu (FCFA)</label><input type="number" id="vMontantR" value="'+(v.montantRecu||v.montant)+'"></div>'+
+    '</div>'+
+    '<div class="fr"><label>Référence *</label><input type="text" id="vRef" value="'+(v.ref||'')+'" placeholder="ex: VIR-20260429-00412"></div>'+
+    '<div class="fr2">'+
+    '<div class="fr"><label>Banque émettrice</label><input type="text" id="vBanque" value="'+(v.banque||'')+'"></div>'+
+    '<div class="fr"><label>Date de réception</label><input type="date" id="vDate" value="'+(v.dateReception||new Date().toISOString().slice(0,10))+'"></div>'+
+    '</div>'+
+    '<div class="fr"><label>Observations comptable</label><textarea id="vObs">'+(v.obs||'')+'</textarea></div>'+
+    '<div class="fa">'+
+    '<button class="btn" onclick="fermerOverlay(\'overlayVersement\')">Annuler</button>'+
+    '<button class="btn btn-g" onclick="confirmerVersement(\''+d.id+'\',\''+v.id+'\')">Confirmer ce versement</button>'+
+    '</div>';
+  document.getElementById('overlayVersement').classList.add('open');
+}
+
+async function confirmerVersement(dossierId, versementId){
+  var ref=document.getElementById('vRef').value.trim();
+  if(!ref){alert('La référence est obligatoire pour le comptable.');return;}
+  var d=G_DOSSIERS.find(function(x){return x.id===dossierId;});
+  if(!d){alert('Dossier introuvable');return;}
+  var vs=getVersements(d);
+  var nouveauxVs=vs.map(function(v){
+    if(v.id!==versementId) return v;
+    return Object.assign({},v,{
+      label:document.getElementById('vLabel').value||v.label,
+      montant:parseFloat(document.getElementById('vMontantA').value)||v.montant,
+      montantRecu:parseFloat(document.getElementById('vMontantR').value)||v.montant,
+      ref:ref,
+      banque:document.getElementById('vBanque').value,
+      dateReception:document.getElementById('vDate').value,
+      mode:document.getElementById('vMode').value,
+      obs:document.getElementById('vObs').value,
+      recu:true,    // ← versement confirmé
+      paye:true,    // ← compatibilité ancien champ
+      enregistreLe:new Date().toLocaleDateString('fr-FR')
+    });
+  });
+  // Calculer le total encaissé après ce versement
+  var totalEncaisse=nouveauxVs.filter(function(v){return v.recu;})
+    .reduce(function(s,v){return s+(parseFloat(v.montantRecu||v.montant)||0);},0);
+  var montantTotal=parseFloat(d.montant)||0;
+  var estSoldeNow = montantTotal>0 && totalEncaisse>=montantTotal;
+  fermerOverlay('overlayVersement');
+  var ok=await sauver(dossierId,{
+    versements:nouveauxVs,
+    paye:estSoldeNow,        // soldé seulement si 100% encaissé
+    etape:estSoldeNow?5:4    // reste à 4 tant que reliquat
+  });
+  if(ok) ouvrirDetail(dossierId);
+}
+
+async function confirmerPaiementSimple(id){
+  var ref=document.getElementById('pRef').value.trim();
+  if(!ref){alert('La référence est obligatoire.');return;}
+  var paiement={
+    mode:document.getElementById('pMode').value,
+    ref:ref,
+    banque:document.getElementById('pBanque').value,
+    date:document.getElementById('pDate').value,
+    montantRecu:parseFloat(document.getElementById('pMontant').value),
+    obs:document.getElementById('pObs').value,
+    enregistreLe:new Date().toLocaleDateString('fr-FR')
+  };
+  var montantTotal=parseFloat(d.montant)||0;
+  var montantRecu=parseFloat(document.getElementById('pMontant').value)||0;
+  var estSoldeNow=montantTotal>0&&montantRecu>=montantTotal;
+  fermerOverlay('overlayVersement');
+  await sauver(id,{paiement:paiement,paye:estSoldeNow,etape:estSoldeNow?5:4});
+}
+
+// ══════════════════════════════════════════════════════════
+//  FORMULAIRE DOSSIER
+// ══════════════════════════════════════════════════════════
+function ouvrirNouveauDossier(){ G_EDITING=null; afficherFormDossier({}); }
+function ouvrirEdition(id){
+  G_EDITING=id;
+  fermerOverlay('overlayDossier');
+  afficherFormDossier(G_DOSSIERS.find(function(x){return x.id===id;})||{});
+}
+
+function afficherFormDossier(d){
+  var defNum=d.num||('DOS-'+new Date().getFullYear()+'-'+String(G_DOSSIERS.length+1).padStart(3,'0'));
+  document.getElementById('modalDossier').innerHTML=
+    '<h3>'+(G_EDITING?'Modifier le dossier':'Nouveau dossier')+'</h3>'+
+    '<div class="fr2">'+
+    '<div class="fr"><label>N° Dossier</label><input id="fNum" value="'+defNum+'"></div>'+
+    '<div class="fr"><label>Secteur</label><select id="fSect">'+
+    ['Banque / Finance','Administration publique','Télécoms','ONG / Org. internationale','Hôtellerie / Tourisme','Industrie / BTP','Autre'].map(function(s){return '<option'+(d.secteur===s?' selected':'')+'>'+s+'</option>';}).join('')+
+    '</select></div></div>'+
+    '<div class="fr"><label>Client</label><input id="fClient" value="'+(d.client||'')+'"></div>'+
+    '<div class="fr"><label>Prestation / Objet</label><input id="fObjet" value="'+(d.objet||'')+'"></div>'+
+    '<div class="fr2">'+
+    '<div class="fr"><label>Montant total HT (FCFA)</label><input type="number" id="fMontant" value="'+(d.montant||'')+'"></div>'+
+    '<div class="fr"><label>Date de la facture</label><input type="date" id="fDateFact" value="'+(d.date_facture||'')+'"></div>'+
+    '</div>'+
+    '<div class="fr"><label>Échéance de paiement</label><input type="date" id="fEch" value="'+(d.echeance||'')+'"></div>'+
+    '<div class="fr"><label>Notes internes</label><textarea id="fNotes">'+(d.notes||'')+'</textarea></div>'+
+    '<div class="fa">'+
+    '<button class="btn" onclick="fermerOverlay(\'overlayDossier\')">Annuler</button>'+
+    '<button class="btn btn-p" onclick="sauvegarderFormDossier()">Enregistrer</button>'+
+    '</div>';
+  document.getElementById('overlayDossier').classList.add('open');
+}
+
+async function sauvegarderFormDossier(){
+  var num=document.getElementById('fNum').value.trim();
+  var client=document.getElementById('fClient').value.trim();
+  var montant=parseFloat(document.getElementById('fMontant').value);
+  if(!num||!client||!montant){alert('N° dossier, client et montant sont obligatoires.');return;}
+  var data={
+    num:num, client:client,
+    secteur:document.getElementById('fSect').value,
+    objet:document.getElementById('fObjet').value,
+    montant:montant,
+    date_facture:document.getElementById('fDateFact').value||null,
+    echeance:document.getElementById('fEch').value||null,
+    notes:document.getElementById('fNotes').value
+  };
+  fermerOverlay('overlayDossier');
+  if(G_EDITING){
+    await sauver(G_EDITING,data);
+  }else{
+    await SB.from('dossiers').insert([Object.assign({},data,{etape:0,relances:[],paye:false,versements:[]})]);
+    await charger();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  RECOUVREMENT
+// ══════════════════════════════════════════════════════════
+function renderRecouvrement(){
+  // Tous les dossiers facturés non soldés
+  var aRec=G_DOSSIERS.filter(function(d){return d.etape>=4&&!estSolde(d);});
+  var soldes=G_DOSSIERS.filter(function(d){return estSolde(d);});
+
+  var totE=aRec.reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0);
+  var totEnc=aRec.reduce(function(s,d){return s+totalEnc(d);},0);
+  var totEncSoldes=soldes.reduce(function(s,d){return s+totalEnc(d);},0);
+  var totEncTotal=totEnc+totEncSoldes;
+  var urgent=aRec.filter(function(d){return getZone(d)==='urgent';});
+  var proche=aRec.filter(function(d){return getZone(d)==='proche';});
+  var ok=aRec.filter(function(d){return getZone(d)==='ok';});
+  var totRetard=urgent.reduce(function(s,d){return s+Math.max(0,(parseFloat(d.montant)||0)-totalEnc(d));},0);
+  var maxJ=urgent.length?Math.max.apply(null,urgent.map(function(d){var e=prochaineEch(d);return e?Math.abs(daysTo(e)):0;})):0;
+
+  document.getElementById('kpiRecRow').innerHTML=
+    '<div class="kpi"><div class="kpi-l">Encours total</div><div class="kpi-v blu">'+fmt(totE)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Déjà encaissé</div><div class="kpi-v grn">'+fmt(totEncTotal)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Restant dû urgent</div><div class="kpi-v red">'+fmt(totRetard)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Retard max</div><div class="kpi-v ora">'+maxJ+'j</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Total encaissé</div><div class="kpi-v grn">'+fmt(totEncTotal)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Montant soldé</div><div class="kpi-v grn">'+fmt(soldes.reduce(function(s,d){return s+totalEnc(d);},0))+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Dossiers soldés</div><div class="kpi-v grn">'+soldes.length+'</div></div>';
+
+  // Tri par date de facture (priorité) puis par prochaine échéance
+  function triPriorite(a,b){
+    var da=a.date_facture||'9999'; var db=b.date_facture||'9999';
+    if(da!==db) return new Date(da)-new Date(db);
+    return new Date(prochaineEch(a)||'9999')-new Date(prochaineEch(b)||'9999');
+  }
+
+  function rowHtml(d,zone){
+    var vs=getVersements(d);
+    var avecV=vs.length>0;
+    var enc=totalEnc(d);
+    var restant=Math.max(0,(parseFloat(d.montant)||0)-enc);
+    var pct=d.montant>0?Math.min(100,Math.round(enc/d.montant*100)):0;
+    var ech=prochaineEch(d);
+    var j=ech?daysTo(ech):9999;
+    var lbl=j<0?'<span class="pill p-red">'+Math.abs(j)+'j de retard</span>':
+             j===0?'<span class="pill p-ora">Échéance aujourd\'hui</span>':
+             j<9999?'<span class="pill p-grn">Dans '+j+'j</span>':'';
+    var prochainV=avecV?vs.filter(function(v){return !v.recu;}).sort(function(a,b){return new Date(a.echeance||'9999')-new Date(b.echeance||'9999');})[0]:null;
+    var actions=DR.paiement()?
+      (DR.relancer()?'<button class="btn btn-sm btn-r" onclick="relancer(\''+d.id+'\')">Relancer</button>':'')+
+      '<button class="btn btn-sm btn-g" onclick="ouvrirDetail(\''+d.id+'\')">'+(avecV?'Voir / Encaisser versement':'Encaisser')+'</button>'
+      :'<span class="tag-lecture">Lecture seule</span>';
+
+    return '<div class="drow '+zone+'">'+
+      '<div class="dr-main">'+
+      '<div class="dr-client">'+d.client+' <span style="font-weight:normal;font-size:11px;color:#888780">— '+d.num+'</span></div>'+
+      '<div class="dr-sub">'+(d.objet||'')+(d.date_facture?' · Facture du '+d.date_facture:'')+
+      (avecV?' · '+vs.filter(function(v){return v.recu;}).length+'/'+vs.length+' versements reçus':'')+
+      '</div>'+
+      (avecV?'<div class="prog-wrap"><div class="prog-fill" style="width:'+pct+'%"></div></div>'+
+       '<div style="font-size:10px;color:#888780">Restant dû : <strong style="color:#A32D2D">'+fmt(restant)+'</strong></div>':'')+
+      (prochainV?'<div style="font-size:11px;color:#888780;margin-top:3px">Prochain versement : <strong>'+prochainV.label+'</strong> — '+fmt(prochainV.montant)+(prochainV.echeance?' — éch. '+prochainV.echeance:'')+'</div>':'')+
+      '<div class="action-row">'+actions+'</div>'+
+      '</div>'+
+      '<div style="flex-shrink:0;text-align:right">'+
+      '<div style="font-size:13px;font-weight:bold;color:#185FA5">'+fmt(d.montant)+'</div>'+
+      '<div style="margin-top:4px">'+lbl+'</div>'+
+      (ech?'<div style="font-size:10px;color:#888780;margin-top:2px">Prochaine éch. '+ech+'</div>':'')+
+      '</div></div>';
+  }
+
+  document.getElementById('zone-urgent').innerHTML=urgent.length
+    ?urgent.sort(triPriorite).map(function(d){return rowHtml(d,'urgent');}).join('')
+    :'<div class="empty">Aucun dossier en retard.</div>';
+
+  document.getElementById('zone-proche').innerHTML=proche.length
+    ?proche.sort(triPriorite).map(function(d){return rowHtml(d,'proche');}).join('')
+    :'<div class="empty">Aucune échéance dans les 7 prochains jours.</div>';
+
+  document.getElementById('zone-ok').innerHTML=ok.length
+    ?ok.sort(triPriorite).map(function(d){return rowHtml(d,'ok-z');}).join('')
+    :'<div class="empty">Aucun dossier en cours dans les délais.</div>';
+
+  // Archives
+  document.getElementById('zone-archive').innerHTML=soldes.length
+    ?soldes.sort(function(a,b){return new Date(b.cree_le)-new Date(a.cree_le);}).map(function(d){
+      var vs=getVersements(d);
+      var avecV=vs.length>0;
+      var enc=totalEnc(d);
+      return '<div style="background:#EAF3DE;border-radius:6px;padding:9px 12px;margin-bottom:5px;font-size:12px">'+
+        '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'+
+        '<strong>'+d.client+'</strong><span class="pill p-grn">Soldé ✓</span></div>'+
+        '<div style="color:#888780">'+d.num+' · '+fmt(enc)+' encaissé'+
+        (d.date_facture?' · Facture du '+d.date_facture:'')+
+        (avecV?' · '+vs.length+' versement(s)':'')+
+        '</div>'+
+        (avecV?vs.map(function(v){
+          return '<div style="color:#888780;margin-top:2px">• '+(v.label||'Versement')+' : <strong style="color:#185FA5">'+(v.ref||'—')+'</strong> · '+fmt(v.montantRecu||v.montant)+' · reçu le '+(v.dateReception||'—')+'</div>';
+        }).join(''):
+        (d.paiement?'<div style="color:#888780;margin-top:2px">Réf : <strong style="color:#185FA5">'+(d.paiement.ref||'—')+'</strong> · '+(d.paiement.banque||'')+' · reçu le '+(d.paiement.date||'—')+'</div>':''))+
+        '<button class="btn btn-sm" style="margin-top:6px" onclick="imprimerFiche(\''+d.id+'\')">Imprimer fiche PDF</button>'+
+        '</div>';
+    }).join('')
+    :'<div class="empty">Aucun dossier soldé pour l\'instant.</div>';
+}
+
+// ══════════════════════════════════════════════════════════
+//  IMPRESSION PDF
+// ══════════════════════════════════════════════════════════
+function imprimerFiche(id){
+  var d=G_DOSSIERS.find(function(x){return x.id===id;});
+  if(!d) return;
+  var vs=getVersements(d);
+  var avecV=vs.length>0;
+  var enc=totalEnc(d);
+  var ecart=enc-(parseFloat(d.montant)||0);
+
+  var detailPaiement='';
+  if(avecV){
+    detailPaiement='<tr><td colspan="2" style="background:#185FA5;color:#fff;padding:6px 10px;font-weight:bold;border:0.5px solid #185FA5">Détail des versements</td></tr>'+
+      vs.map(function(v){
+        return '<tr><td style="background:#F8F7F4;padding:6px 10px;color:#888780;border:0.5px solid #D3D1C7">'+(v.label||'Versement')+'</td>'+
+          '<td style="padding:6px 10px;border:0.5px solid #D3D1C7">'+fmt(v.montantRecu||v.montant)+
+          ' · Réf : <strong style="color:#185FA5">'+(v.ref||'—')+'</strong>'+
+          (v.banque?' · '+v.banque:'')+
+          ' · reçu le '+(v.dateReception||'—')+
+          (v.obs?'<br><span style="color:#854F0B">'+v.obs+'</span>':'')+
+          '</td></tr>';
+      }).join('');
+  }else{
+    var p=d.paiement||{};
+    detailPaiement=[
+      ['Mode',p.mode||'—'],
+      ['Référence','<strong style="color:#185FA5">'+(p.ref||'—')+'</strong>'],
+      ['Banque',p.banque||'—'],['Date réception',p.date||'—'],
+      ['Observations',p.obs||'—']
+    ].map(function(r){
+      return '<tr><td style="background:#F8F7F4;padding:6px 10px;color:#888780;border:0.5px solid #D3D1C7">'+r[0]+'</td><td style="padding:6px 10px;border:0.5px solid #D3D1C7">'+r[1]+'</td></tr>';
+    }).join('');
+  }
+
+  document.getElementById('printZone').innerHTML=
+    '<div style="font-family:Arial,sans-serif;max-width:750px;margin:0 auto;padding:20px">'+
+    '<div style="display:flex;align-items:center;gap:24px;margin-bottom:8px">'+
+    '<div style="font-size:22px;font-weight:bold;color:#185FA5">GRAPHIC PRINT</div>'+
+    '<div style="font-size:18px;font-weight:bold;color:#185FA5;flex:1;text-align:center">Fiche de clôture de paiement</div>'+
+    '</div><hr style="border:none;border-top:2.5px solid #2C2C2A;margin-bottom:16px">'+
+    '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px">'+
+    [['Client',d.client],['N° Dossier',d.num],['Prestation',d.objet||'—'],
+     ['Date facture',d.date_facture||'—'],['Échéance',d.echeance||'—'],
+     ['Montant total facturé',fmt(d.montant)],
+     ['Total encaissé','<strong style="color:#3B6D11">'+fmt(enc)+'</strong>'],
+     ['Écart',ecart===0?'Aucun écart':'<strong style="color:'+(ecart<0?'#A32D2D':'#3B6D11')+'">'+(ecart>0?'+':'')+Math.round(ecart).toLocaleString('fr-FR')+' FCFA</strong>']
+    ].map(function(r){
+      return '<tr><td style="background:#F8F7F4;padding:6px 10px;color:#888780;width:35%;border:0.5px solid #D3D1C7">'+r[0]+'</td><td style="padding:6px 10px;border:0.5px solid #D3D1C7">'+r[1]+'</td></tr>';
+    }).join('')+
+    detailPaiement+
+    '</table>'+
+    '<div style="padding:8px;background:#EAF3DE;text-align:center;font-weight:bold;font-size:12px;color:#3B6D11">DOSSIER SOLDÉ — PAIEMENT INTÉGRAL CONFIRMÉ</div>'+
+    '<p style="font-size:10px;color:#888780;margin-top:12px;font-style:italic">Conserver avec les justificatifs originaux.</p>'+
+    '</div>';
+  window.print();
+}
+
+// ══════════════════════════════════════════════════════════
+//  OVERLAYS
+// ══════════════════════════════════════════════════════════
+function fermerOverlay(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(function(o){
+  o.addEventListener('click',function(e){ if(e.target===o) o.classList.remove('open'); });
+});
+
+// ══════════════════════════════════════════════════════════
+//  DÉMARRAGE
+// ══════════════════════════════════════════════════════════
+
+// ── COMMERCIAUX ─────────────────────────────────────────────────
+var COMMERCIAUX=[
+  {id:'C1',nom:'Commercial 1',couleur:'#185FA5',bg:'#E6F1FB'},
+  {id:'C2',nom:'Commercial 2',couleur:'#3B6D11',bg:'#EAF3DE'},
+  {id:'C3',nom:'Commercial 3',couleur:'#854F0B',bg:'#FAEEDA'},
+  {id:'C4',nom:'Commercial 4',couleur:'#6B2FA0',bg:'#F0E6FA'},
+  {id:'C5',nom:'Commercial 5',couleur:'#A32D2D',bg:'#FCEBEB'},
+];
+function getC(id){return COMMERCIAUX.find(function(c){return c.id===id;})||COMMERCIAUX[0];}
+function nomC(id){return getC(id).nom;}
+
+function renderCommerciaux(){
+  var el=document.getElementById('tab-commerciaux');
+  if(!el) return;
+  var isAdmin=(G_ROLE==='admin');
+  var dossiers=G_DOSSIERS||[];
+  var totalCA=dossiers.filter(function(d){return d.etape>=4;}).reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0);
+  var html='<div style="max-width:900px;margin:0 auto;padding:12px">';
+  if(isAdmin){html+='<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn btn-p btn-sm" onclick="configurerCommerciaux()">&#9881; Configurer les noms</button></div>';}
+  html+=COMMERCIAUX.map(function(c){
+    var dossC=dossiers.filter(function(d){return d.commercial===c.id;});
+    var actifs=dossC.filter(function(d){return !estSolde(d);});
+    var factCA=dossC.filter(function(d){return d.etape>=4;}).reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0);
+    var encC=dossC.reduce(function(s,d){return s+totalEnc(d);},0);
+    var pct=totalCA>0?Math.round(factCA/totalCA*100):0;
+    return '<div style="background:#fff;border:0.5px solid #D3D1C7;border-left:4px solid '+c.couleur+';border-radius:0 8px 8px 0;padding:14px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      +'<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+c.couleur+'"></span>'
+      +'<strong style="font-size:15px;color:'+c.couleur+'">'+c.nom+'</strong></div>'
+      +'<span style="font-size:12px;color:#888780">'+dossC.length+' dossier(s)</span></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px">'
+      +'<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">Dossiers actifs</div><div style="font-weight:bold;font-size:18px;color:'+c.couleur+'">'+actifs.length+'</div></div>'
+      +'<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">CA factur&#233;</div><div style="font-weight:bold;color:'+c.couleur+'">'+fmt(factCA)+'</div></div>'
+      +'<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">Encaiss&#233;</div><div style="font-weight:bold;color:'+c.couleur+'">'+fmt(encC)+'</div></div>'
+      +'<div style="background:'+c.bg+';padding:8px;border-radius:6px;text-align:center"><div style="color:#888780;margin-bottom:3px">Part du CA</div><div style="font-weight:bold;color:'+c.couleur+'">'+pct+'%</div></div>'
+      +'</div></div>';
+  }).join('');
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function configurerCommerciaux(){
+  var modal=document.getElementById('modalDossier');
+  modal.innerHTML='<h3>&#9881; Configurer les commerciaux</h3>'
+    +'<div class="modal-sub">Admin uniquement</div>'
+    +COMMERCIAUX.map(function(c,i){
+      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+        +'<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:'+c.couleur+';flex-shrink:0"></span>'
+        +'<input type="text" id="nomC'+i+'" value="'+c.nom+'" style="flex:1;font-size:13px;padding:6px;border-radius:6px;border:0.5px solid #D3D1C7">'
+        +'<div style="display:flex;gap:5px">'
+        +['#185FA5','#3B6D11','#854F0B','#6B2FA0','#A32D2D'].map(function(col){
+          return '<span onclick="changerCouleurC('+i+',''+col+'')" style="display:inline-block;width:22px;height:22px;border-radius:50%;background:'+col+';cursor:pointer;border:'+(c.couleur===col?'3px solid #2C2C2A':'1px solid #ccc')+'"></span>';
+        }).join('')+'</div></div>';
+    }).join('')
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">'
+    +'<button class="btn" onclick="fermerOverlay('overlayDossier')">Annuler</button>'
+    +'<button class="btn btn-p" onclick="sauverCommerciaux()">Enregistrer</button></div>';
+  document.getElementById('overlayDossier').classList.add('open');
+}
+function changerCouleurC(idx,couleur){
+  var bgs={'#185FA5':'#E6F1FB','#3B6D11':'#EAF3DE','#854F0B':'#FAEEDA','#6B2FA0':'#F0E6FA','#A32D2D':'#FCEBEB'};
+  COMMERCIAUX[idx].couleur=couleur; COMMERCIAUX[idx].bg=bgs[couleur]||'#F5F5F5';
+  configurerCommerciaux();
+}
+function sauverCommerciaux(){
+  COMMERCIAUX.forEach(function(c,i){var inp=document.getElementById('nomC'+i);if(inp&&inp.value.trim())c.nom=inp.value.trim();});
+  fermerOverlay('overlayDossier'); renderCommerciaux();
+  alert('Commerciaux mis à jour !');
+}
+
+function renderClients(){
+  var el=document.getElementById('tab-clients');
+  if(!el) return;
+  var dossiers=G_DOSSIERS||[];
+  var clientsMap={};
+  dossiers.forEach(function(d){
+    var nom=d.client||'Inconnu';
+    if(!clientsMap[nom])clientsMap[nom]={nom:nom,secteur:d.secteur||'—',dossiers:0,factures:0,montantTotal:0,encaisse:0};
+    clientsMap[nom].dossiers++;
+    if(d.etape>=4){clientsMap[nom].factures++;clientsMap[nom].montantTotal+=parseFloat(d.montant)||0;}
+    clientsMap[nom].encaisse+=totalEnc(d);
+  });
+  var clients=Object.values(clientsMap).sort(function(a,b){return b.montantTotal-a.montantTotal;});
+  var secteursMap={};
+  dossiers.filter(function(d){return d.etape>=4;}).forEach(function(d){
+    var s=d.secteur||'Non défini';
+    if(!secteursMap[s])secteursMap[s]={nom:s,nb:0,montant:0};
+    secteursMap[s].nb++;secteursMap[s].montant+=parseFloat(d.montant)||0;
+  });
+  var secteurs=Object.values(secteursMap).sort(function(a,b){return b.montant-a.montant;});
+  var totalSect=secteurs.reduce(function(s,x){return s+x.montant;},0);
+  var html='<div style="max-width:900px;margin:0 auto;padding:12px">';
+  html+='<div style="font-size:14px;font-weight:bold;color:#185FA5;margin-bottom:10px">&#127942; Classement clients par CA</div>';
+  html+='<div style="background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html+='<tr style="background:#185FA5;color:#fff"><td style="padding:8px 10px">#</td><td style="padding:8px 10px">Client</td><td style="padding:8px 10px">Secteur</td><td style="padding:8px 10px;text-align:center">Factures</td><td style="padding:8px 10px;text-align:right">CA facturé</td><td style="padding:8px 10px;text-align:right">Encaissé</td></tr>';
+  html+=clients.map(function(c,i){
+    var bg=i%2===0?'#fff':'#F8F7F4';
+    var medal=i===0?'&#127947;':i===1?'&#129352;':i===2?'&#129353;':'';
+    return '<tr style="background:'+bg+'"><td style="padding:7px 10px;color:#888780">'+(i+1)+medal+'</td>'
+      +'<td style="padding:7px 10px;font-weight:bold">'+c.nom+'</td><td style="padding:7px 10px;color:#888780">'+c.secteur+'</td>'
+      +'<td style="padding:7px 10px;text-align:center"><span style="background:#E6F1FB;color:#185FA5;padding:2px 8px;border-radius:999px;font-weight:bold">'+c.factures+'</span></td>'
+      +'<td style="padding:7px 10px;text-align:right;font-weight:bold;color:#185FA5">'+fmt(c.montantTotal)+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-weight:bold;color:#3B6D11">'+fmt(c.encaisse)+'</td></tr>';
+  }).join('');
+  html+='</table></div>';
+  html+='<div style="font-size:14px;font-weight:bold;color:#185FA5;margin-bottom:10px">&#128202; CA par secteur</div>';
+  html+='<div style="background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;padding:14px">';
+  html+=secteurs.map(function(s){
+    var pct=totalSect>0?Math.round(s.montant/totalSect*100):0;
+    return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">'
+      +'<span style="font-weight:bold">'+s.nom+'</span>'
+      +'<span style="color:#888780">'+s.nb+' facture(s) · '+fmt(s.montant)+' ('+pct+'%)</span></div>'
+      +'<div style="background:#F1EFE8;border-radius:999px;height:8px;overflow:hidden">'
+      +'<div style="background:#185FA5;height:100%;width:'+pct+'%;border-radius:999px"></div></div></div>';
+  }).join('');
+  html+='</div></div>';
+  el.innerHTML=html;
+}
+
+charger();
+</script>
+</body>
+</html>
