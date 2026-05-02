@@ -108,8 +108,8 @@ body{font-family:Arial,sans-serif;background:#F8F7F4;color:#2C2C2A;font-size:14p
 <div class="tabs">
   <div class="tab active" onclick="switchTab('pipeline',this)">Pipeline commercial</div>
   <div class="tab" onclick="switchTab('recouvrement',this)">Recouvrement</div>
-  <div class="tab" id="tabCommercial" onclick="switchTab('commerciaux',this)">&#128100; Commerciaux</div>
-  <div class="tab" id="tabClient" onclick="switchTab('clients',this)">&#127970; Clients</div>
+  <div class="tab" onclick="switchTab('commerciaux',this)">&#128100; Commerciaux</div>
+  <div class="tab" onclick="switchTab('clients',this)">&#127970; Clients</div>
 </div>
 
 <div class="tab-content active" id="tab-pipeline">
@@ -922,7 +922,9 @@ document.querySelectorAll('.overlay').forEach(function(o){
 //  DÉMARRAGE
 // ══════════════════════════════════════════════════════════
 
-// ── COMMERCIAUX ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+//  COMMERCIAUX
+// ═══════════════════════════════════════════════════════════════
 var COMMERCIAUX=[
   {id:'C1',nom:'Commercial 1',couleur:'#185FA5',bg:'#E6F1FB'},
   {id:'C2',nom:'Commercial 2',couleur:'#3B6D11',bg:'#EAF3DE'},
@@ -940,7 +942,11 @@ function renderCommerciaux(){
   var dossiers=G_DOSSIERS||[];
   var totalCA=dossiers.filter(function(d){return d.etape>=4;}).reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0);
   var html='<div style="max-width:900px;margin:0 auto;padding:12px">';
-  if(isAdmin){html+='<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn btn-p btn-sm" onclick="configurerCommerciaux()">&#9881; Configurer les noms</button></div>';}
+  if(isAdmin){
+    html+='<div style="display:flex;justify-content:flex-end;margin-bottom:12px">'
+         +'<button class="btn btn-p btn-sm" onclick="configurerCommerciaux()">&#9881; Configurer les noms</button>'
+         +'</div>';
+  }
   html+=COMMERCIAUX.map(function(c){
     var dossC=dossiers.filter(function(d){return d.commercial===c.id;});
     var actifs=dossC.filter(function(d){return !estSolde(d);});
@@ -949,7 +955,8 @@ function renderCommerciaux(){
     var pct=totalCA>0?Math.round(factCA/totalCA*100):0;
     return '<div style="background:#fff;border:0.5px solid #D3D1C7;border-left:4px solid '+c.couleur+';border-radius:0 8px 8px 0;padding:14px;margin-bottom:10px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-      +'<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+c.couleur+'"></span>'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+c.couleur+'"></span>'
       +'<strong style="font-size:15px;color:'+c.couleur+'">'+c.nom+'</strong></div>'
       +'<span style="font-size:12px;color:#888780">'+dossC.length+' dossier(s)</span></div>'
       +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px">'
@@ -987,11 +994,18 @@ function changerCouleurC(idx,couleur){
   configurerCommerciaux();
 }
 function sauverCommerciaux(){
-  COMMERCIAUX.forEach(function(c,i){var inp=document.getElementById('nomC'+i);if(inp&&inp.value.trim())c.nom=inp.value.trim();});
-  fermerOverlay('overlayDossier'); renderCommerciaux();
+  COMMERCIAUX.forEach(function(c,i){
+    var inp=document.getElementById('nomC'+i);
+    if(inp&&inp.value.trim()) c.nom=inp.value.trim();
+  });
+  fermerOverlay('overlayDossier');
+  renderCommerciaux();
   alert('Commerciaux mis à jour !');
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  CLIENTS
+// ═══════════════════════════════════════════════════════════════
 function renderClients(){
   var el=document.getElementById('tab-clients');
   if(!el) return;
@@ -999,7 +1013,7 @@ function renderClients(){
   var clientsMap={};
   dossiers.forEach(function(d){
     var nom=d.client||'Inconnu';
-    if(!clientsMap[nom])clientsMap[nom]={nom:nom,secteur:d.secteur||'—',dossiers:0,factures:0,montantTotal:0,encaisse:0};
+    if(!clientsMap[nom]) clientsMap[nom]={nom:nom,secteur:d.secteur||'—',dossiers:0,factures:0,montantTotal:0,encaisse:0};
     clientsMap[nom].dossiers++;
     if(d.etape>=4){clientsMap[nom].factures++;clientsMap[nom].montantTotal+=parseFloat(d.montant)||0;}
     clientsMap[nom].encaisse+=totalEnc(d);
@@ -1008,20 +1022,22 @@ function renderClients(){
   var secteursMap={};
   dossiers.filter(function(d){return d.etape>=4;}).forEach(function(d){
     var s=d.secteur||'Non défini';
-    if(!secteursMap[s])secteursMap[s]={nom:s,nb:0,montant:0};
-    secteursMap[s].nb++;secteursMap[s].montant+=parseFloat(d.montant)||0;
+    if(!secteursMap[s]) secteursMap[s]={nom:s,nb:0,montant:0};
+    secteursMap[s].nb++; secteursMap[s].montant+=parseFloat(d.montant)||0;
   });
   var secteurs=Object.values(secteursMap).sort(function(a,b){return b.montant-a.montant;});
   var totalSect=secteurs.reduce(function(s,x){return s+x.montant;},0);
   var html='<div style="max-width:900px;margin:0 auto;padding:12px">';
   html+='<div style="font-size:14px;font-weight:bold;color:#185FA5;margin-bottom:10px">&#127942; Classement clients par CA</div>';
-  html+='<div style="background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html+='<div style="background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;overflow:hidden;margin-bottom:20px">';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
   html+='<tr style="background:#185FA5;color:#fff"><td style="padding:8px 10px">#</td><td style="padding:8px 10px">Client</td><td style="padding:8px 10px">Secteur</td><td style="padding:8px 10px;text-align:center">Factures</td><td style="padding:8px 10px;text-align:right">CA facturé</td><td style="padding:8px 10px;text-align:right">Encaissé</td></tr>';
   html+=clients.map(function(c,i){
     var bg=i%2===0?'#fff':'#F8F7F4';
     var medal=i===0?'&#127947;':i===1?'&#129352;':i===2?'&#129353;':'';
     return '<tr style="background:'+bg+'"><td style="padding:7px 10px;color:#888780">'+(i+1)+medal+'</td>'
-      +'<td style="padding:7px 10px;font-weight:bold">'+c.nom+'</td><td style="padding:7px 10px;color:#888780">'+c.secteur+'</td>'
+      +'<td style="padding:7px 10px;font-weight:bold">'+c.nom+'</td>'
+      +'<td style="padding:7px 10px;color:#888780">'+c.secteur+'</td>'
       +'<td style="padding:7px 10px;text-align:center"><span style="background:#E6F1FB;color:#185FA5;padding:2px 8px;border-radius:999px;font-weight:bold">'+c.factures+'</span></td>'
       +'<td style="padding:7px 10px;text-align:right;font-weight:bold;color:#185FA5">'+fmt(c.montantTotal)+'</td>'
       +'<td style="padding:7px 10px;text-align:right;font-weight:bold;color:#3B6D11">'+fmt(c.encaisse)+'</td></tr>';
@@ -1031,7 +1047,8 @@ function renderClients(){
   html+='<div style="background:#fff;border:0.5px solid #D3D1C7;border-radius:8px;padding:14px">';
   html+=secteurs.map(function(s){
     var pct=totalSect>0?Math.round(s.montant/totalSect*100):0;
-    return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">'
+    return '<div style="margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">'
       +'<span style="font-weight:bold">'+s.nom+'</span>'
       +'<span style="color:#888780">'+s.nb+' facture(s) · '+fmt(s.montant)+' ('+pct+'%)</span></div>'
       +'<div style="background:#F1EFE8;border-radius:999px;height:8px;overflow:hidden">'
