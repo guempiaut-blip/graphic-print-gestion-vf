@@ -359,6 +359,15 @@ async function sauver(id, updates){
 //  PIPELINE
 // ══════════════════════════════════════════════════════════
 function renderBoard(){
+  var styleId='comm-colors';
+  if(!document.getElementById(styleId)){
+    var style=document.createElement('style');
+    style.id=styleId;
+    style.textContent=COMMERCIAUX.map(function(c){
+      return '.comm-'+c.id+'{border-left:4px solid '+c.couleur+' !important;border-radius:0 6px 6px 0}';
+    }).join('');
+    document.head.appendChild(style);
+  }
   var q=(document.getElementById('searchInput')||{value:''}).value.toLowerCase();
   var sect=(document.getElementById('filterSect')||{value:''}).value;
   var filtered=G_DOSSIERS.filter(function(d){
@@ -396,7 +405,7 @@ function renderBoard(){
         var enc=totalEnc(d);
         var pct=d.montant>0?Math.min(100,Math.round(enc/d.montant*100)):0;
         var retard=d.etape>=4&&getZone(d)==='urgent';
-        return '<div class="card" onclick="ouvrirDetail(\''+d.id+'\')">'+
+        return '<div class="card comm-'+d.commercial+'" onclick="ouvrirDetail(\''+d.id+'\')">'+
           '<div class="card-client">'+( d.client||'')+'</div>'+
           '<div class="card-amount">'+fmt(d.montant)+'</div>'+
           '<div style="font-size:10px;color:#888780">'+(d.objet||'').slice(0,26)+((d.objet||'').length>26?'…':'')+'</div>'+
