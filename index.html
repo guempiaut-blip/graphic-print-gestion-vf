@@ -181,9 +181,9 @@ const SB = supabase.createClient(
   'sb_publishable_aa-fC7neU8yHo2nFLO3LFA_saTkf_IS'
 );
 const PASS = {
-  'GraphicPrint2026':'admin',
-  'GpContrib2026':'contributeur',
-  'GpCompta2026':'comptable'
+  'MarleneGP26':'admin',
+  'DirectionGP26':'contributeur',
+  'ComptaGP26':'comptable'
 };
 const STAGES = [
   {id:0,label:'Accueil & tarification',short:'Tarification',cls:'s0'},
@@ -408,6 +408,7 @@ function renderBoard(){
           '</div>';
       }).join('')+'</div>';
   }).join('');
+  coloriserCartes();
 }
 
 // ══════════════════════════════════════════════════════════
