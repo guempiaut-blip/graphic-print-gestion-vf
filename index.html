@@ -1050,7 +1050,19 @@ function sauverCommerciaux(){
     if(inp&&inp.value.trim()) c.nom=inp.value.trim();
   });
   fermerOverlay('overlayDossier');
+  // Re-rendre immédiatement le dashboard commercial avec les nouveaux noms
   renderCommerciaux();
+  // Mettre à jour aussi les CSS couleurs
+  var style=document.getElementById('comm-colors');
+  if(style){
+    style.textContent=COMMERCIAUX.map(function(c){
+      return '.comm-'+c.id+'{border-left:4px solid '+c.couleur+' !important;border-radius:0 6px 6px 0}';
+    }).join('');
+  }
+  // Mettre à jour le select filtre si présent
+  var sel=document.getElementById('filterComm');
+  if(sel) sel.innerHTML='<option value="">Tous commerciaux</option>'+
+    COMMERCIAUX.map(function(c){return '<option value="'+c.id+'">'+c.nom+'</option>';}).join('');
   alert('Commerciaux mis \u00e0 jour !');
 }
 
