@@ -82,13 +82,13 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 
 /* ── KPI ────────────────────────────────────────────── */
 .kpi-row{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  gap:12px;margin-bottom:20px;
+  display:grid;grid-template-columns:repeat(8,1fr);
+  gap:10px;margin-bottom:20px;
 }
 .kpi{
   background:var(--blanc);
   border-radius:10px;
-  padding:16px 18px;
+  padding:12px 14px;
   border:1px solid var(--gris-l);
   border-top:3px solid var(--or);
   box-shadow:0 2px 8px rgba(0,0,0,0.06);
@@ -96,7 +96,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 }
 .kpi:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.1);}
 .kpi-l{font-size:10px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px}
-.kpi-v{font-size:22px;font-weight:800;color:var(--noir);line-height:1}
+.kpi-v{font-size:18px;font-weight:800;color:var(--noir);line-height:1}
 .kpi-v.blu{color:#185FA5}
 .kpi-v.grn{color:var(--vert)}
 .kpi-v.red{color:var(--rouge)}
