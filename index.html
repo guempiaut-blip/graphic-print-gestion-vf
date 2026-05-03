@@ -90,15 +90,19 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 .kpi{
   background:var(--blanc);
   border-radius:10px;
-  padding:12px 14px;
+  padding:14px 10px;
   border:1px solid var(--gris-l);
   border-top:3px solid var(--or);
   box-shadow:0 2px 8px rgba(0,0,0,0.06);
   transition:transform 0.2s;
+  text-align:center;
+  display:flex;flex-direction:column;
+  justify-content:center;
+  min-height:80px;
 }
 .kpi:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.1);}
-.kpi-l{font-size:10px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px}
-.kpi-v{font-size:18px;font-weight:800;color:var(--noir);line-height:1}
+.kpi-l{font-size:9px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;line-height:1.3}
+.kpi-v{font-size:16px;font-weight:800;color:var(--noir);line-height:1.1;word-break:break-word}
 .kpi-v.blu{color:#185FA5}
 .kpi-v.grn{color:var(--vert)}
 .kpi-v.red{color:var(--rouge)}
@@ -196,14 +200,17 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 .rec-proche .rec-zone-title{background:#FEF3E2;color:#D68910}
 .rec-cours .rec-zone-title{background:#EEF2F8;color:#185FA5}
 .rec-archive .rec-zone-title{background:#F0F0F0;color:var(--gris)}
-.rec-item{background:var(--blanc);border:1px solid var(--gris-l);border-radius:8px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px;transition:box-shadow 0.2s}
+.rec-item{background:var(--blanc);border:1px solid var(--gris-l);border-radius:8px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:stretch;gap:0;transition:box-shadow 0.2s}
 .rec-item:hover{box-shadow:0 4px 12px rgba(0,0,0,0.1)}
-.rec-info{flex:1}
+.rec-info{flex:1;padding-right:16px}
 .rec-client{font-weight:700;font-size:13px;color:var(--texte)}
 .rec-detail{font-size:11px;color:var(--gris);margin-top:2px}
+.rec-sep{width:1px;background:var(--gris-l);margin:0 16px;flex-shrink:0}
+.rec-right{width:180px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;align-items:flex-end}
 .rec-montant{font-weight:800;font-size:14px;color:#185FA5;text-align:right}
-.rec-retard{font-size:11px;font-weight:700;color:var(--rouge);text-align:right}
-.rec-btns{display:flex;gap:6px}
+.rec-retard{font-size:11px;font-weight:700;color:var(--rouge);text-align:right;margin-top:3px}
+.rec-ech{font-size:10px;color:var(--gris);text-align:right;margin-top:2px}
+.rec-btns{display:flex;gap:6px;margin-top:8px}
 
 /* ── ACOMPTES ────────────────────────────────────────── */
 .prog-bar{background:var(--gris-l);border-radius:999px;height:8px;overflow:hidden;margin:6px 0}
@@ -948,10 +955,11 @@ function renderRecouvrement(){
       (prochainV?'<div style="font-size:11px;color:#888780;margin-top:3px">Prochain versement : <strong>'+prochainV.label+'</strong> — '+fmt(prochainV.montant)+(prochainV.echeance?' — éch. '+prochainV.echeance:'')+'</div>':'')+
       '<div class="action-row">'+actions+'</div>'+
       '</div>'+
-      '<div style="flex-shrink:0;text-align:right">'+
-      '<div style="font-size:13px;font-weight:bold;color:#185FA5">'+fmt(d.montant)+'</div>'+
-      '<div style="margin-top:4px">'+lbl+'</div>'+
-      (ech?'<div style="font-size:10px;color:#888780;margin-top:2px">Prochaine éch. '+ech+'</div>':'')+
+      '<div class="rec-sep"></div>'+
+      '<div class="rec-right">'+
+      '<div class="rec-montant">'+fmt(d.montant)+'</div>'+
+      '<div class="rec-retard">'+lbl+'</div>'+
+      (ech?'<div class="rec-ech">Éch. '+ech+'</div>':'')+
       '</div></div>';
   }
 
