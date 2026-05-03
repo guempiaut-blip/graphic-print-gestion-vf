@@ -59,22 +59,24 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 
 /* ── ONGLETS ────────────────────────────────────────── */
 .tabs{
-  display:flex;gap:0;
+  display:flex;gap:0;align-items:stretch;
   background:var(--blanc);
   border-bottom:2px solid var(--gris-l);
   padding:0 24px;
   box-shadow:0 1px 4px rgba(0,0,0,0.06);
 }
 .tab{
-  padding:13px 20px;font-size:12px;font-weight:600;
+  padding:14px 24px;font-size:11px;font-weight:700;
   color:var(--gris);cursor:pointer;
-  border-bottom:2px solid transparent;
+  border-bottom:3px solid transparent;
   margin-bottom:-2px;
-  transition:all 0.2s;letter-spacing:0.3px;
+  transition:all 0.2s;letter-spacing:0.8px;
   text-transform:uppercase;
+  display:flex;align-items:center;gap:6px;
+  white-space:nowrap;
 }
 .tab:hover{color:var(--or);background:var(--or-bg);}
-.tab.active{color:var(--noir);border-bottom:2px solid var(--or);background:transparent;}
+.tab.active{color:var(--noir);border-bottom:3px solid var(--or);background:transparent;font-weight:800;}
 
 /* ── CONTAINER ──────────────────────────────────────── */
 .container{max-width:1400px;margin:0 auto;padding:20px 24px}
@@ -339,7 +341,7 @@ var DR = {
 // ══════════════════════════════════════════════════════════
 //  UTILITAIRES
 // ══════════════════════════════════════════════════════════
-function fmt(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0))+' FCFA'; }
+function fmt(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0))+'<sup style="font-size:60%;font-weight:600;vertical-align:super;margin-left:2px">FCFA</sup>'; }
 
 function daysTo(dateStr){
   if(!dateStr) return 9999;
@@ -1034,7 +1036,7 @@ function imprimerFiche(id){
      ['Date facture',d.date_facture||'—'],['Échéance',d.echeance||'—'],
      ['Montant total facturé',fmt(d.montant)],
      ['Total encaissé','<strong style="color:#3B6D11">'+fmt(enc)+'</strong>'],
-     ['Écart',ecart===0?'Aucun écart':'<strong style="color:'+(ecart<0?'#A32D2D':'#3B6D11')+'">'+(ecart>0?'+':'')+Math.round(ecart).toLocaleString('fr-FR')+' FCFA</strong>']
+     ['Écart',ecart===0?'Aucun écart':'<strong style="color:'+(ecart<0?'#A32D2D':'#3B6D11')+'">'+(ecart>0?'+':'')+Math.round(ecart).toLocaleString('fr-FR')+'<sup style="font-size:60%;font-weight:600;vertical-align:super;margin-left:2px">FCFA</sup></strong>']
     ].map(function(r){
       return '<tr><td style="background:#F8F7F4;padding:6px 10px;color:#888780;width:35%;border:0.5px solid #D3D1C7">'+r[0]+'</td><td style="padding:6px 10px;border:0.5px solid #D3D1C7">'+r[1]+'</td></tr>';
     }).join('')+
