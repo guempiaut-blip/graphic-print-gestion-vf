@@ -92,10 +92,12 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 
 <div class="container">
 <div class="tabs">
+  <div class="tab" onclick="switchTab('stats',this)">&#128202; Statistiques</div>
   <div class="tab active" onclick="switchTab('pipeline',this)">Pipeline commercial</div>
   <div class="tab" onclick="switchTab('recouvrement',this)">Recouvrement</div>
   <div class="tab" onclick="switchTab('commerciaux',this)">&#128100; Commerciaux</div>
   <div class="tab" onclick="switchTab('clients',this)">&#127970; Clients</div>
+  <div class="tab" onclick="switchTab('historique',this)">&#128193; Historique</div>
 </div>
 
 <div class="tab-content active" id="tab-pipeline">
@@ -113,8 +115,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
   <div class="stages" id="board"><div class="spinner" style="grid-column:1/-1">Chargement...</div></div>
 </div>
 
+<div class="tab-content" id="tab-stats"></div>
 <div class="tab-content" id="tab-commerciaux"></div>
 <div class="tab-content" id="tab-clients"></div>
+<div class="tab-content" id="tab-historique"></div>
 <div class="tab-content" id="tab-recouvrement">
   <div class="kpi-row" id="kpiRecRow"></div>
   <div class="section-title"><span class="dot dot-red"></span>Action requise — échéance dépassée</div>
@@ -244,6 +248,28 @@ function estSolde(d){
   return enc >= montant;
 }
 
+function estArchive(d){
+  if(!estSolde(d)) return false;
+  var paiements=getVersements(d).filter(function(v){return v.recu&&v.date_recu;});
+  if(!paiements.length) return false;
+  var dp=paiements.sort(function(a,b){return new Date(b.date_recu)-new Date(a.date_recu);})[0].date_recu;
+  var datePaie=new Date(dp);
+  var now=new Date();
+  return (datePaie.getFullYear()<now.getFullYear())||(datePaie.getFullYear()===now.getFullYear()&&datePaie.getMonth()<now.getMonth());
+}
+function estDansHistorique(d){
+  if(!estArchive(d)) return false;
+  var paiements=getVersements(d).filter(function(v){return v.recu&&v.date_recu;});
+  if(!paiements.length) return false;
+  var dp=paiements.sort(function(a,b){return new Date(b.date_recu)-new Date(a.date_recu);})[0].date_recu;
+  var il12=new Date();il12.setMonth(il12.getMonth()-12);
+  return new Date(dp)>=il12;
+}
+function dateDernierPaiement(d){
+  var paiements=getVersements(d).filter(function(v){return v.recu&&v.date_recu;});
+  if(!paiements.length) return null;
+  return paiements.sort(function(a,b){return new Date(b.date_recu)-new Date(a.date_recu);})[0].date_recu;
+}
 // Prochaine échéance : prochain versement non reçu, sinon échéance globale
 function prochaineEch(d){
   var vs = getVersements(d);
@@ -312,6 +338,8 @@ function switchTab(name,el){
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='commerciaux') renderCommerciaux();
   if(name==='clients') renderClients();
+  if(name==='historique') renderHistorique();
+  if(name==='stats') renderStats();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -357,6 +385,7 @@ function renderBoard(){
   var q=(document.getElementById('searchInput')||{value:''}).value.toLowerCase();
   var sect=(document.getElementById('filterSect')||{value:''}).value;
   var filtered=G_DOSSIERS.filter(function(d){
+    if(estArchive(d)) return false;
     return ((d.client||'').toLowerCase().includes(q)||(d.num||'').toLowerCase().includes(q)||(d.objet||'').toLowerCase().includes(q))
       &&(!sect||d.secteur===sect);
   });
@@ -753,8 +782,8 @@ async function sauvegarderFormDossier(){
 // ══════════════════════════════════════════════════════════
 function renderRecouvrement(){
   // Tous les dossiers facturés non soldés
-  var aRec=G_DOSSIERS.filter(function(d){return d.etape>=4&&!estSolde(d);});
-  var soldes=G_DOSSIERS.filter(function(d){return estSolde(d);});
+  var aRec=G_DOSSIERS.filter(function(d){return d.etape>=4&&!estSolde(d)&&!estArchive(d);});
+  var soldes=G_DOSSIERS.filter(function(d){return estSolde(d)&&!estArchive(d);});
 
   var totE=aRec.reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0);
   var totEnc=aRec.reduce(function(s,d){return s+totalEnc(d);},0);
@@ -1171,6 +1200,170 @@ function coloriserCartes(){
   }
   toRemove.forEach(function(n){ if(n.parentNode) n.parentNode.removeChild(n); });
 })();
+
+function renderHistorique(){
+  var el=document.getElementById('tab-historique');
+  if(!el) return;
+  var dossiers=G_DOSSIERS.filter(function(d){return estDansHistorique(d);});
+  dossiers.sort(function(a,b){return new Date(dateDernierPaiement(b)||0)-new Date(dateDernierPaiement(a)||0);});
+  var html='<div style="max-width:1100px;margin:0 auto;padding:12px">';
+  html+='<div style="font-size:14px;font-weight:800;color:var(--noir);margin-bottom:16px">&#128193; Historique des dossiers soldés <span style="font-size:11px;font-weight:400;color:var(--gris)">('+dossiers.length+' dossier(s) — 12 derniers mois)</span></div>';
+  if(!dossiers.length){
+    html+='<div class="empty">Aucun dossier dans l'historique pour le moment.</div>';
+  } else {
+    html+='<div style="background:var(--blanc);border:1px solid var(--gris-l);border-radius:10px;overflow:hidden">';
+    html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html+='<thead><tr style="background:var(--noir);color:#fff">'
+         +'<td style="padding:10px 14px">N° Dossier</td><td style="padding:10px 14px">Client</td>'
+         +'<td style="padding:10px 14px">Secteur</td><td style="padding:10px 14px">Commercial</td>'
+         +'<td style="padding:10px 14px;text-align:right">Montant</td>'
+         +'<td style="padding:10px 14px;text-align:center">Date paiement</td>'
+         +'<td style="padding:10px 14px;text-align:center">Expire le</td>'
+         +'</tr></thead><tbody>';
+    html+=dossiers.map(function(d,i){
+      var bg=i%2===0?'var(--blanc)':'var(--fond)';
+      var datePaie=dateDernierPaiement(d)||'—';
+      var dateExpire='—';
+      if(datePaie!=='—'){var exp=new Date(datePaie);exp.setFullYear(exp.getFullYear()+1);dateExpire=exp.toISOString().substring(0,10);}
+      var c=getC(d.commercial);
+      return '<tr style="background:'+bg+';border-bottom:1px solid var(--gris-l)">'
+        +'<td style="padding:10px 14px;font-weight:700">'+d.num+'</td>'
+        +'<td style="padding:10px 14px;font-weight:600">'+d.client+'</td>'
+        +'<td style="padding:10px 14px;color:var(--gris)">'+(d.secteur||'—')+'</td>'
+        +'<td style="padding:10px 14px"><span style="background:'+c.bg+';color:'+c.couleur+';padding:2px 8px;border-radius:999px;font-weight:700;font-size:11px">'+c.nom+'</span></td>'
+        +'<td style="padding:10px 14px;text-align:right;font-weight:800;color:#185FA5">'+fmt(d.montant)+'</td>'
+        +'<td style="padding:10px 14px;text-align:center;color:var(--vert);font-weight:600">'+datePaie+'</td>'
+        +'<td style="padding:10px 14px;text-align:center;color:var(--orange);font-size:11px">'+dateExpire+'</td>'
+        +'</tr>';
+    }).join('');
+    html+='</tbody></table></div>';
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function renderStats(){
+  var el=document.getElementById('tab-stats');
+  if(!el) return;
+  var nbMois=parseInt((document.getElementById('statPeriode')||{value:'12'}).value||'12');
+  var maintenant=new Date();
+  var mois=[];
+  for(var i=nbMois-1;i>=0;i--){
+    var d=new Date(maintenant.getFullYear(),maintenant.getMonth()-i,1);
+    mois.push({key:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),
+               label:['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][d.getMonth()]+' '+d.getFullYear().toString().substring(2)});
+  }
+  var factures=G_DOSSIERS.filter(function(d){return d.etape>=4&&d.date_facture;});
+  var caParMois={};mois.forEach(function(m){caParMois[m.key]=0;});
+  factures.forEach(function(d){var k=d.date_facture.substring(0,7);if(caParMois[k]!==undefined)caParMois[k]+=(parseFloat(d.montant)||0);});
+  var encParMois={};mois.forEach(function(m){encParMois[m.key]=0;});
+  G_DOSSIERS.forEach(function(d){getVersements(d).filter(function(v){return v.recu&&v.date_recu;}).forEach(function(v){var k=v.date_recu.substring(0,7);if(encParMois[k]!==undefined)encParMois[k]+=(parseFloat(v.montant_recu||v.montant)||0);});});
+  var caCommParMois={};
+  COMMERCIAUX.forEach(function(c){caCommParMois[c.id]={};mois.forEach(function(m){caCommParMois[c.id][m.key]=0;});});
+  factures.forEach(function(d){var k=d.date_facture.substring(0,7);var cid=d.commercial||'C1';if(caCommParMois[cid]&&caCommParMois[cid][k]!==undefined)caCommParMois[cid][k]+=(parseFloat(d.montant)||0);});
+  var totalParComm={};
+  COMMERCIAUX.forEach(function(c){totalParComm[c.id]=factures.filter(function(d){return d.commercial===c.id;}).reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0);});
+  var totalGeneral=factures.reduce(function(s,d){return s+(parseFloat(d.montant)||0);},0);
+  var totalEnc2=G_DOSSIERS.reduce(function(s,d){return s+totalEnc(d);},0);
+  var delais=[];
+  G_DOSSIERS.filter(function(d){return estSolde(d)&&d.date_facture;}).forEach(function(d){var dp=dateDernierPaiement(d);if(dp){var j=Math.round((new Date(dp)-new Date(d.date_facture))/(1000*86400));if(j>=0)delais.push(j);}});
+  var delaiMoyen=delais.length?Math.round(delais.reduce(function(a,b){return a+b;},0)/delais.length):0;
+  var txRec=totalGeneral>0?Math.round(totalEnc2/totalGeneral*100):0;
+  var panierMoyen=factures.length?Math.round(totalGeneral/factures.length):0;
+  var maxCA=Math.max.apply(null,mois.map(function(m){return caParMois[m.key]||0;}))||1;
+
+  var html='<div style="max-width:1100px;margin:0 auto;padding:12px">';
+  // Sélecteur
+  html+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">'
+       +'<span style="font-size:14px;font-weight:800;color:var(--noir)">&#128202; Statistiques &amp; Évolution</span>'
+       +'<select id="statPeriode" onchange="renderStats()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--gris-l);font-size:12px;font-weight:600">'
+       +'<option value="3"'+(nbMois===3?' selected':'')+'>3 derniers mois</option>'
+       +'<option value="6"'+(nbMois===6?' selected':'')+'>6 derniers mois</option>'
+       +'<option value="12"'+(nbMois===12?' selected':'')+'>12 derniers mois</option>'
+       +'</select></div>';
+  // KPI
+  html+='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px">';
+  [{l:'CA Total Facturé',v:fmt(totalGeneral),c:'#185FA5'},
+   {l:'Total Encaissé',v:fmt(totalEnc2),c:'var(--vert)'},
+   {l:'Taux Recouvrement',v:txRec+'%',c:txRec>=80?'var(--vert)':txRec>=50?'var(--orange)':'var(--rouge)'},
+   {l:'Délai Moyen Paiement',v:delaiMoyen+'j',c:'var(--orange)'},
+   {l:'Panier Moyen',v:fmt(panierMoyen),c:'var(--noir)'}
+  ].forEach(function(k){
+    html+='<div style="background:var(--blanc);border:1px solid var(--gris-l);border-top:3px solid var(--or);border-radius:10px;padding:14px;text-align:center">'
+         +'<div style="font-size:9px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">'+k.l+'</div>'
+         +'<div style="font-size:18px;font-weight:800;color:'+k.c+'">'+k.v+'</div></div>';
+  });
+  html+='</div>';
+  // Barres CA mensuel
+  html+='<div style="background:var(--blanc);border:1px solid var(--gris-l);border-radius:10px;padding:18px;margin-bottom:16px">';
+  html+='<div style="font-size:12px;font-weight:800;color:var(--noir);margin-bottom:16px;text-transform:uppercase;letter-spacing:0.5px">CA Facturé vs Encaissé par mois</div>';
+  html+='<div style="display:flex;align-items:flex-end;gap:4px;height:140px">';
+  mois.forEach(function(m){
+    var ca=caParMois[m.key]||0,enc=encParMois[m.key]||0;
+    var hCA=ca>0?Math.max(8,Math.round(ca/maxCA*100)):2;
+    var hEnc=enc>0?Math.max(4,Math.round(enc/maxCA*100)):0;
+    html+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">'
+         +'<div style="font-size:8px;color:var(--gris);font-weight:600;text-align:center">'+(ca>0?Math.round(ca/1000)+'k':'')+'</div>'
+         +'<div style="width:100%;display:flex;gap:1px;align-items:flex-end;height:100px">'
+         +'<div style="flex:1;background:var(--or);border-radius:3px 3px 0 0;height:'+hCA+'px;min-height:2px"></div>'
+         +'<div style="flex:1;background:var(--vert);border-radius:3px 3px 0 0;height:'+hEnc+'px;min-height:'+(enc>0?2:0)+'px;opacity:0.7"></div>'
+         +'</div>'
+         +'<div style="font-size:8px;color:var(--gris);white-space:nowrap;text-align:center">'+m.label+'</div>'
+         +'</div>';
+  });
+  html+='</div>';
+  html+='<div style="display:flex;gap:16px;margin-top:6px;font-size:10px">'
+       +'<span><span style="display:inline-block;width:10px;height:10px;background:var(--or);border-radius:2px;margin-right:4px"></span>CA Facturé</span>'
+       +'<span><span style="display:inline-block;width:10px;height:10px;background:var(--vert);border-radius:2px;margin-right:4px;opacity:0.7"></span>Encaissé</span>'
+       +'</div></div>';
+  // Tableau commerciaux
+  html+='<div style="background:var(--blanc);border:1px solid var(--gris-l);border-radius:10px;padding:18px;margin-bottom:16px">';
+  html+='<div style="font-size:12px;font-weight:800;color:var(--noir);margin-bottom:16px;text-transform:uppercase;letter-spacing:0.5px">Performance par commercial</div>';
+  html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+  html+='<thead><tr style="background:var(--fond)"><td style="padding:8px 12px;font-weight:700;color:var(--gris)">Commercial</td>';
+  mois.forEach(function(m){html+='<td style="padding:8px 6px;text-align:center;font-weight:700;color:var(--gris);font-size:10px">'+m.label+'</td>';});
+  html+='<td style="padding:8px 12px;text-align:right;font-weight:700;color:var(--gris)">Total</td><td style="padding:8px 12px;text-align:center;font-weight:700;color:var(--gris)">Part</td></tr></thead><tbody>';
+  COMMERCIAUX.forEach(function(c,idx){
+    var total=totalParComm[c.id]||0;
+    var pct=totalGeneral>0?Math.round(total/totalGeneral*100):0;
+    html+='<tr style="background:'+(idx%2===0?'var(--blanc)':'var(--fond)')+';border-bottom:1px solid var(--gris-l)">'
+         +'<td style="padding:8px 12px"><span style="display:inline-flex;align-items:center;gap:6px">'
+         +'<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+c.couleur+'"></span>'
+         +'<strong style="color:'+c.couleur+'">'+c.nom+'</strong></span></td>';
+    mois.forEach(function(m){
+      var v=(caCommParMois[c.id]&&caCommParMois[c.id][m.key])||0;
+      html+='<td style="padding:8px 6px;text-align:center;color:'+(v>0?'#185FA5':'var(--gris-l)')+';font-weight:'+(v>0?700:400)+'">'+(v>0?Math.round(v/1000)+'k':'—')+'</td>';
+    });
+    html+='<td style="padding:8px 12px;text-align:right;font-weight:800;color:#185FA5">'+fmt(total)+'</td>'
+         +'<td style="padding:8px 12px;text-align:center"><div style="background:'+c.bg+';color:'+c.couleur+';padding:2px 8px;border-radius:999px;font-weight:700;font-size:10px">'+pct+'%</div></td></tr>';
+  });
+  html+='<tr style="background:var(--noir);color:#fff;font-weight:700"><td style="padding:8px 12px">TOTAL</td>';
+  mois.forEach(function(m){html+='<td style="padding:8px 6px;text-align:center;font-size:10px">'+(caParMois[m.key]?Math.round(caParMois[m.key]/1000)+'k':'—')+'</td>';});
+  html+='<td style="padding:8px 12px;text-align:right">'+fmt(totalGeneral)+'</td><td style="padding:8px 12px;text-align:center">100%</td></tr>';
+  html+='</tbody></table></div></div>';
+  // CA par secteur
+  var secteursMap={};
+  factures.forEach(function(d){var s=d.secteur||'Non défini';if(!secteursMap[s])secteursMap[s]={nom:s,nb:0,montant:0,encaisse:0};secteursMap[s].nb++;secteursMap[s].montant+=(parseFloat(d.montant)||0);secteursMap[s].encaisse+=totalEnc(d);});
+  var secteurs=Object.values(secteursMap).sort(function(a,b){return b.montant-a.montant;});
+  var totalSect=secteurs.reduce(function(s,x){return s+x.montant;},0);
+  html+='<div style="background:var(--blanc);border:1px solid var(--gris-l);border-radius:10px;padding:18px;margin-bottom:16px">';
+  html+='<div style="font-size:12px;font-weight:800;color:var(--noir);margin-bottom:16px;text-transform:uppercase;letter-spacing:0.5px">CA &amp; Recouvrement par secteur</div>';
+  secteurs.forEach(function(s){
+    var pct=totalSect>0?Math.round(s.montant/totalSect*100):0;
+    var txEnc=s.montant>0?Math.round(s.encaisse/s.montant*100):0;
+    html+='<div style="margin-bottom:12px">'
+         +'<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px">'
+         +'<span style="font-weight:700">'+s.nom+'</span>'
+         +'<span style="color:var(--gris)">'+s.nb+' dossier(s) · '+Math.round(s.montant/1000)+'k FCFA ('+pct+'%) · Recouvré: <strong style="color:var(--vert)">'+txEnc+'%</strong></span></div>'
+         +'<div style="background:var(--gris-l);border-radius:999px;height:10px;overflow:hidden;position:relative">'
+         +'<div style="background:var(--or);height:100%;width:'+pct+'%;border-radius:999px;position:absolute;left:0;top:0"></div>'
+         +'<div style="background:var(--vert);height:100%;width:'+Math.round(pct*txEnc/100)+'%;border-radius:999px;position:absolute;left:0;top:0;opacity:0.8"></div>'
+         +'</div></div>';
+  });
+  html+='</div></div>';
+  el.innerHTML=html;
+}
+
 charger();
 </script>
 </body>
