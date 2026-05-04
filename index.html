@@ -1387,7 +1387,8 @@ function renderStats(){
 // ═══════════════════════════════════════════════════════════════
 //  ONGLET CONTACTS
 // ═══════════════════════════════════════════════════════════════
-var G_CONTACTS = []; // contacts depuis Supabase
+var G_CONTACTS = [];
+var G_CONTACT_EN_COURS = null; // id du contact en cours d'édition // contacts depuis Supabase
 
 async function chargerContacts(){
   try {
@@ -1514,6 +1515,7 @@ function renderContacts(){
 }
 
 function ouvrirFormulaireContact(id){
+  G_CONTACT_EN_COURS = id || null;
   var c = id ? (G_CONTACTS.find(function(x){return x.id===id;}) || {}) : {};
   // Pré-remplir le client depuis les dossiers existants
   var clientsConnus = [...new Set(G_DOSSIERS.map(function(d){return d.client;}).filter(Boolean))].sort();
@@ -1537,12 +1539,13 @@ function ouvrirFormulaireContact(id){
     + '<div class="fr"><label>Notes</label><textarea id="cNotes" rows="2" style="padding:9px 12px;border-radius:8px;border:1px solid var(--gris-l);font-size:13px;font-family:inherit;resize:vertical">'+(c.notes||'')+'</textarea></div>'
     + '<div class="fa">'
     + '<button class="btn" onclick="fermerOverlay(\'overlayDossier\')">Annuler</button>'
-    + '<button class="btn btn-p" onclick="soumettreContact(\"'+(id||'')+'\")">Enregistrer</button>'
+    + '<button class="btn btn-p" onclick="soumettreContact()">Enregistrer</button>'
     + '</div>';
   document.getElementById('overlayDossier').classList.add('open');
 }
 
-function soumettreContact(id){
+function soumettreContact(){
+  var id = G_CONTACT_EN_COURS;
   if(G_ROLE !== 'admin' && G_ROLE !== 'contributeur'){ alert('Connexion requise pour enregistrer.'); return; }
   var client = document.getElementById('cClient').value.trim();
   var nom = document.getElementById('cNom').value.trim();
