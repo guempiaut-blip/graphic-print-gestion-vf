@@ -97,6 +97,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
   <div class="tab" onclick="switchTab('recouvrement',this)">Recouvrement</div>
   <div class="tab" onclick="switchTab('commerciaux',this)">&#128100; Commerciaux</div>
   <div class="tab" onclick="switchTab('clients',this)">&#127970; Clients</div>
+  <div class="tab" onclick="switchTab('contacts',this)">&#128222; Contacts</div>
   <div class="tab" onclick="switchTab('historique',this)">&#128193; Historique</div>
 </div>
 
@@ -118,6 +119,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 <div class="tab-content" id="tab-stats"></div>
 <div class="tab-content" id="tab-commerciaux"></div>
 <div class="tab-content" id="tab-clients"></div>
+<div class="tab-content" id="tab-contacts"></div>
 <div class="tab-content" id="tab-historique"></div>
 <div class="tab-content" id="tab-recouvrement">
   <div class="kpi-row" id="kpiRecRow"></div>
@@ -338,6 +340,7 @@ function switchTab(name,el){
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='commerciaux') renderCommerciaux();
   if(name==='clients') renderClients();
+  if(name==='contacts') renderContacts();
   if(name==='historique') renderHistorique();
   if(name==='stats') renderStats();
 }
@@ -354,6 +357,7 @@ async function charger(){
   }catch(e){ console.error('Erreur chargement:',e); sync(false); }
   renderBoard();
   renderRecouvrement();
+  chargerContacts();
 }
 setInterval(charger,30000);
 
@@ -735,6 +739,15 @@ function afficherFormDossier(d){
     '<div class="fr"><label>Commercial</label><select id="fComm">'+
     COMMERCIAUX.map(function(c){return '<option value="'+c.id+'"'+(d.commercial===c.id?' selected':'')+'>'+c.nom+'</option>';}).join('')+
     '</select></div>'+
+    '<div class="fr2">'+
+    '<div class="fr"><label>Interlocuteur</label><input id="fInterlocuteur" value="'+(d.interlocuteur||'')+'"></div>'+
+    '<div class="fr"><label>T&#233;l&#233;phone</label><input id="fTelephone" placeholder="+242..." value="'+(d.telephone||'')+'"></div>'+
+    '</div>'+
+    '<div class="fr2">'+
+    '<div class="fr"><label>Email</label><input id="fEmail" type="email" value="'+(d.email||'')+'"></div>'+
+    '<div class="fr"><label>Adresse</label><input id="fAdresse" value="'+(d.adresse||'')+'"></div>'+
+    '</div>'+
+
     '<div class="fr"><label>Secteur</label><select id="fSect">'+
     ['Banque / Finance','Administration publique','Télécoms','ONG / Org. internationale','Hôtellerie / Tourisme','Industrie / BTP','Autre'].map(function(s){return '<option'+(d.secteur===s?' selected':'')+'>'+s+'</option>';}).join('')+
     '</select></div></div>'+
@@ -761,6 +774,10 @@ async function sauvegarderFormDossier(){
   var data={
     num:num, client:client,
     commercial:document.getElementById('fComm')?document.getElementById('fComm').value:'C1',
+    interlocuteur:document.getElementById('fInterlocuteur')?document.getElementById('fInterlocuteur').value:'',
+    telephone:document.getElementById('fTelephone')?document.getElementById('fTelephone').value:'',
+    email:document.getElementById('fEmail')?document.getElementById('fEmail').value:'',
+    adresse:document.getElementById('fAdresse')?document.getElementById('fAdresse').value:'',
     secteur:document.getElementById('fSect').value,
     objet:document.getElementById('fObjet').value,
     montant:montant,
@@ -1364,6 +1381,183 @@ function renderStats(){
   });
   html+='</div></div>';
   el.innerHTML=html;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  ONGLET CONTACTS
+// ═══════════════════════════════════════════════════════════════
+var G_CONTACTS = []; // contacts depuis Supabase
+
+async function chargerContacts(){
+  try {
+    var res = await SB.from('contacts').select('*').order('client', {ascending:true});
+    if(!res.error) G_CONTACTS = res.data || [];
+  } catch(e){ console.error('Erreur contacts:', e); }
+  renderContacts();
+}
+
+async function sauverContact(data){
+  try {
+    var res;
+    if(data.id){
+      res = await SB.from('contacts').update(data).eq('id', data.id);
+    } else {
+      res = await SB.from('contacts').insert(data);
+    }
+    if(res.error) throw res.error;
+    await chargerContacts();
+  } catch(e){ alert('Erreur sauvegarde contact: '+e.message); }
+}
+
+async function supprimerContact(id){
+  if(!confirm('Supprimer ce contact ?')) return;
+  try {
+    await SB.from('contacts').delete().eq('id', id);
+    await chargerContacts();
+  } catch(e){ alert('Erreur suppression: '+e.message); }
+}
+
+function renderContacts(){
+  var el = document.getElementById('tab-contacts');
+  if(!el) return;
+
+  var q = (document.getElementById('searchContact')||{value:''}).value.toLowerCase();
+  var filtres = G_CONTACTS.filter(function(c){
+    return !q || (c.client||'').toLowerCase().includes(q)
+              || (c.nom||'').toLowerCase().includes(q)
+              || (c.telephone||'').toLowerCase().includes(q)
+              || (c.email||'').toLowerCase().includes(q);
+  });
+
+  // Regrouper par client
+  var parClient = {};
+  filtres.forEach(function(c){
+    var cl = c.client||'—';
+    if(!parClient[cl]) parClient[cl] = [];
+    parClient[cl].push(c);
+  });
+  var clients = Object.keys(parClient).sort();
+
+  var canEdit = (G_ROLE === 'admin' || G_ROLE === 'contributeur');
+
+  var html = '<div style="max-width:1100px;margin:0 auto;padding:12px">';
+
+  // Barre de recherche + bouton ajouter
+  html += '<div style="display:flex;gap:10px;margin-bottom:20px;align-items:center">';
+  html += '<input id="searchContact" type="text" autocomplete="off" placeholder="Rechercher un contact, client, téléphone..." '
+        + 'value="'+q+'" oninput="renderContacts()" '
+        + 'style="flex:1;padding:9px 14px;border-radius:8px;border:1px solid var(--gris-l);font-size:13px;outline:none">';
+  if(canEdit){
+    html += '<button class="btn btn-p" onclick="ouvrirFormulaireContact(null)">+ Nouveau contact</button>';
+  }
+  html += '</div>';
+
+  if(!filtres.length){
+    html += '<div class="empty">Aucun contact trouvé.</div>';
+  } else {
+    clients.forEach(function(cl){
+      var contacts = parClient[cl];
+      html += '<div style="margin-bottom:20px">';
+      // En-tête client
+      html += '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;'
+            + 'color:var(--noir);background:var(--fond);padding:8px 14px;border-radius:8px 8px 0 0;'
+            + 'border:1px solid var(--gris-l);border-bottom:none">'+cl+'</div>';
+      html += '<div style="background:var(--blanc);border:1px solid var(--gris-l);border-radius:0 0 8px 8px;overflow:hidden">';
+      contacts.forEach(function(c, i){
+        var bg = i%2===0 ? 'var(--blanc)' : 'var(--fond)';
+        html += '<div style="display:flex;align-items:center;gap:14px;padding:12px 16px;background:'+bg+';'
+              + 'border-bottom:'+(i<contacts.length-1?'1px solid var(--gris-l)':'none')+'">';
+        // Avatar initiales
+        var initiales = (c.nom||'?').split(' ').map(function(w){return w[0]||'';}).join('').substring(0,2).toUpperCase();
+        html += '<div style="width:38px;height:38px;border-radius:50%;background:var(--or);color:var(--noir);'
+              + 'display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0">'+initiales+'</div>';
+        // Infos
+        html += '<div style="flex:1">';
+        html += '<div style="font-weight:700;font-size:13px;color:var(--texte)">'+(c.nom||'—')+'</div>';
+        if(c.adresse) html += '<div style="font-size:11px;color:var(--gris);margin-top:2px">'+c.adresse+'</div>';
+        html += '</div>';
+        // Téléphone
+        html += '<div style="text-align:center;min-width:140px">';
+        if(c.telephone){
+          html += '<a href="tel:'+c.telephone+'" style="display:inline-flex;align-items:center;gap:6px;'
+                + 'background:#E8F8F0;color:var(--vert);padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none">'
+                + '&#128222; '+c.telephone+'</a>';
+        } else {
+          html += '<span style="color:var(--gris-l);font-size:12px">—</span>';
+        }
+        html += '</div>';
+        // Email
+        html += '<div style="text-align:center;min-width:180px">';
+        if(c.email){
+          html += '<a href="mailto:'+c.email+'" style="display:inline-flex;align-items:center;gap:6px;'
+                + 'background:#EEF2F8;color:#185FA5;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none">'
+                + '&#9993; '+c.email+'</a>';
+        } else {
+          html += '<span style="color:var(--gris-l);font-size:12px">—</span>';
+        }
+        html += '</div>';
+        // Actions
+        if(canEdit){
+          html += '<div style="display:flex;gap:6px">';
+          html += '<button class="btn btn-sm" onclick="ouvrirFormulaireContact(\"'+c.id+'\")" title="Modifier">&#9999;</button>';
+          html += '<button class="btn btn-sm btn-r" onclick="supprimerContact(\"'+c.id+'\")" title="Supprimer">&#128465;</button>';
+          html += '</div>';
+        }
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function ouvrirFormulaireContact(id){
+  var c = id ? (G_CONTACTS.find(function(x){return x.id===id;}) || {}) : {};
+  // Pré-remplir le client depuis les dossiers existants
+  var clientsConnus = [...new Set(G_DOSSIERS.map(function(d){return d.client;}).filter(Boolean))].sort();
+
+  var modal = document.getElementById('modalDossier');
+  modal.innerHTML = '<h3>'+(id ? '✏️ Modifier le contact' : '+ Nouveau contact')+'</h3>'
+    + '<div class="modal-sub">Interlocuteur client</div>'
+    + '<div class="fr"><label>Client</label>'
+    + '<select id="cClient" style="padding:9px 12px;border-radius:8px;border:1px solid var(--gris-l);font-size:13px">'
+    + '<option value="">Sélectionner un client...</option>'
+    + clientsConnus.map(function(cl){ return '<option value="'+cl+'"'+(c.client===cl?' selected':'')+'>'+cl+'</option>'; }).join('')
+    + '</select></div>'
+    + '<div class="fr2">'
+    + '<div class="fr"><label>Nom &amp; Prénom</label><input id="cNom" value="'+(c.nom||'')+'" placeholder="Jean Dupont"></div>'
+    + '<div class="fr"><label>Téléphone (indicatif inclus)</label><input id="cTel" value="'+(c.telephone||'')+'" placeholder="+242 06 000 0000"></div>'
+    + '</div>'
+    + '<div class="fr2">'
+    + '<div class="fr"><label>Email</label><input id="cEmail" type="email" value="'+(c.email||'')+'" placeholder="jean@exemple.com"></div>'
+    + '<div class="fr"><label>Adresse</label><input id="cAdresse" value="'+(c.adresse||'')+'" placeholder="Brazzaville, Congo"></div>'
+    + '</div>'
+    + '<div class="fr"><label>Notes</label><textarea id="cNotes" rows="2" style="padding:9px 12px;border-radius:8px;border:1px solid var(--gris-l);font-size:13px;font-family:inherit;resize:vertical">'+(c.notes||'')+'</textarea></div>'
+    + '<div class="fa">'
+    + '<button class="btn" onclick="fermerOverlay(\'overlayDossier\')">Annuler</button>'
+    + '<button class="btn btn-p" onclick="soumettreContact(\"'+(id||'')+'\")">Enregistrer</button>'
+    + '</div>';
+  document.getElementById('overlayDossier').classList.add('open');
+}
+
+function soumettreContact(id){
+  var client = document.getElementById('cClient').value.trim();
+  var nom = document.getElementById('cNom').value.trim();
+  if(!client){ alert('Veuillez sélectionner un client.'); return; }
+  if(!nom){ alert('Le nom est obligatoire.'); return; }
+  var data = {
+    client: client,
+    nom: nom,
+    telephone: document.getElementById('cTel').value.trim(),
+    email: document.getElementById('cEmail').value.trim(),
+    adresse: document.getElementById('cAdresse').value.trim(),
+    notes: document.getElementById('cNotes').value.trim(),
+  };
+  if(id) data.id = id;
+  fermerOverlay('overlayDossier');
+  sauverContact(data);
 }
 
 charger();
