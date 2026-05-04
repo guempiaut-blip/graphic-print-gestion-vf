@@ -1400,7 +1400,7 @@ async function chargerContacts(){
 async function sauverContact(data){
   try {
     var res;
-    if(data.id){
+    if(data.id && data.id !== ''){
       res = await SB.from('contacts').update(data).eq('id', data.id);
     } else {
       res = await SB.from('contacts').insert(data);
@@ -1543,6 +1543,7 @@ function ouvrirFormulaireContact(id){
 }
 
 function soumettreContact(id){
+  if(G_ROLE !== 'admin' && G_ROLE !== 'contributeur'){ alert('Connexion requise pour enregistrer.'); return; }
   var client = document.getElementById('cClient').value.trim();
   var nom = document.getElementById('cNom').value.trim();
   if(!client){ alert('Veuillez sélectionner un client.'); return; }
@@ -1555,7 +1556,7 @@ function soumettreContact(id){
     adresse: document.getElementById('cAdresse').value.trim(),
     notes: document.getElementById('cNotes').value.trim(),
   };
-  if(id) data.id = id;
+  if(id && id !== '') data.id = id;
   fermerOverlay('overlayDossier');
   sauverContact(data);
 }
