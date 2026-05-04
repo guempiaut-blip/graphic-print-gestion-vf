@@ -103,7 +103,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 <div class="tab-content active" id="tab-pipeline">
   <div class="kpi-row" id="kpiRow"><div class="spinner">Chargement...</div></div>
   <div class="toolbar">
-    <input type="text" id="searchInput" placeholder="Client, n° dossier..." oninput="renderBoard()">
+    <input type="text" id="searchInput" placeholder="Client, n° dossier..." autocomplete="off" oninput="renderBoard()">
     <select id="filterSect" onchange="renderBoard()">
       <option value="">Tous secteurs</option>
       <option>Banque / Finance</option><option>Administration publique</option>
@@ -1247,9 +1247,13 @@ function renderStats(){
   if(!el) return;
   var nbMois=parseInt((document.getElementById('statPeriode')||{value:'12'}).value||'12');
   var maintenant=new Date();
+  // Partir de janvier de l'année courante
+  var annee = maintenant.getFullYear();
+  var moisCourant = maintenant.getMonth(); // 0-11
   var mois=[];
-  for(var i=nbMois-1;i>=0;i--){
-    var d=new Date(maintenant.getFullYear(),maintenant.getMonth()-i,1);
+  // Générer depuis janvier jusqu'au mois courant (inclus)
+  for(var i=0; i<=moisCourant; i++){
+    var d=new Date(annee, i, 1);
     mois.push({key:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),
                label:['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][d.getMonth()]+' '+d.getFullYear().toString().substring(2)});
   }
@@ -1274,13 +1278,11 @@ function renderStats(){
 
   var html='<div style="max-width:1100px;margin:0 auto;padding:12px">';
   // Sélecteur
-  html+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">'
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'
        +'<span style="font-size:14px;font-weight:800;color:var(--noir)">&#128202; Statistiques &amp; Évolution</span>'
-       +'<select id="statPeriode" onchange="renderStats()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--gris-l);font-size:12px;font-weight:600">'
-       +'<option value="3"'+(nbMois===3?' selected':'')+'>3 derniers mois</option>'
-       +'<option value="6"'+(nbMois===6?' selected':'')+'>6 derniers mois</option>'
-       +'<option value="12"'+(nbMois===12?' selected':'')+'>12 derniers mois</option>'
-       +'</select></div>';
+       +'<span style="font-size:12px;font-weight:600;color:var(--gris);background:var(--fond);padding:6px 14px;border-radius:8px;border:1px solid var(--gris-l)">'
+       +'Janvier — '+['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][maintenant.getMonth()]+' '+maintenant.getFullYear()
+       +'</span></div>';
   // KPI
   html+='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px">';
   [{l:'CA Total Facturé',v:fmt(totalGeneral),c:'#185FA5'},
