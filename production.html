@@ -568,8 +568,11 @@ function switchTab(name,el){
 // ── CHARGEMENT ────────────────────────────────────────
 async function charger(){
   try{
-    // Dossiers éligibles à la production (etape >= 3 = proforma ou plus)
-    var r1 = await SB.from('dossiers').select('*').gte('etape',3).order('cree_le',{ascending:false});
+    // Dossiers de production : proforma (etape=3) non encore livrés
+    // Etape 4+ = facturé/recouvrement = déjà livré → exclure sauf si en production active
+    var r1 = await SB.from('dossiers').select('*')
+      .in('etape',[3,4,5])
+      .order('cree_le',{ascending:false});
     if(!r1.error) G_DOSSIERS = r1.data||[];
 
     // Affectations production
@@ -679,10 +682,14 @@ function badgeStatutMachine(s){
 }
 
 function statutProdAuto(d){
-  // Si dossier soldé (etape 5) → automatiquement livré
-  if(d.etape>=5 && (!d.statut_production||d.statut_production==='non_lance')){
-    return 'livre';
+  // Logique métier :
+  // - etape 4 ou 5 (facturé/recouvrement/soldé) = travail livré
+  // - SAUF si statut_production est explicitement défini autrement
+  if(d.etape>=4){
+    if(d.statut_production && d.statut_production!=='non_lance') return d.statut_production;
+    return 'livre'; // présumé livré car en recouvrement
   }
+  // etape 3 = proforma → statut production réel
   return d.statut_production||'non_lance';
 }
 
@@ -785,7 +792,9 @@ function renderDashboard(){
 
   var enProd = G_DOSSIERS.filter(function(d){return d.statut_production==='en_production';}).length;
   var nonLances = G_DOSSIERS.filter(function(d){
-    return !d.statut_production||d.statut_production==='non_lance';
+    var sp = statutProdAuto(d);
+    // En attente = proforma (etape 3) non encore lancé
+    return d.etape===3 && (!d.statut_production||d.statut_production==='non_lance');
   }).length;
   var pretLivrer = G_DOSSIERS.filter(function(d){return d.statut_production==='pret_livrer';}).length;
 
@@ -824,11 +833,14 @@ function renderDashboard(){
         +'<td><strong>'+( d.num||'—')+'</strong></td>'
         +'<td>'+d.client+'</td>'
         +'<td style="font-size:11px">'+( d.atelier_production||'—')+'</td>'
-        +'<td style="font-size:11px">'+( d.machine_assignee||'—')+'</td>'
-        +'<td>'+( d.machiniste_assigne||'—')+'</td>'
+        +'<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis">'+(d.machine_assignee||'—')+'</td>'
+        +'<td style="font-size:11px">'+(d.machiniste_assigne||'—')+'</td>'
         +'<td style="font-weight:700;color:'+(retard?'var(--rouge)':'var(--bleu)')+'">'+( d.date_fin_production||'—')+'</td>'
-        +'<td><button class="btn btn-sm btn-g" onclick="terminerProduction(\''+d.id+'\')">✅ Terminer</button>'
-        +' <button class="btn btn-sm" onclick="ouvrirProd(\''+d.id+'\')">✏️</button></td>'
+        +(d.machine_assignee&&d.machine_assignee.trim()!==''
+          ?'<td><button class="btn btn-sm btn-g" onclick="terminerProduction(\\\''+d.id+'\\\')">✅ Terminer</button>'
+          +' <button class="btn btn-sm" onclick="ouvrirProd(\\\''+d.id+'\\\')">✏️</button></td>'
+          :'<td><span style="font-size:10px;color:var(--orange)">⚠️ Machine non affectée</span>'
+          +' <button class="btn btn-sm" onclick="ouvrirProd(\\\''+d.id+'\\\')">✏️</button></td>')
         +'</tr>';
     });
     html+='</tbody></table></div>';
@@ -860,61 +872,115 @@ function renderDossiers(){
   var fAt=(document.getElementById('filAtelier')||{value:''}).value;
   var canEdit=(G_ROLE==='admin'||G_ROLE==='production'||G_ROLE==='contributeur');
 
+  // Filtrer : exclure les dossiers présumés livrés (etape>=4 sans statut prod défini)
   var list=G_DOSSIERS.filter(function(d){
+    var sp=statutProdAuto(d);
+    // Exclure les "livrés automatiques" sauf si filtre explicite
+    if(sp==='livre' && d.etape>=4 && (!d.statut_production||d.statut_production==='non_lance')) return false;
     var matchQ=!q||(d.client||'').toLowerCase().includes(q)||(d.num||'').toLowerCase().includes(q);
-    var matchS=!fSt||(d.statut_production||'non_lance')===fSt;
+    var matchS=!fSt||sp===fSt;
     var matchA=!fAt||(d.atelier_production||'')===fAt;
     return matchQ&&matchS&&matchA;
   });
 
-  if(!list.length){
-    el.innerHTML='<div class="empty">Aucun dossier trouvé.</div>';
-    return;
-  }
-
-  var html='<div class="table-wrap"><table class="dtable">'
-    +'<thead><tr>'
-    +'<td>N° Dossier</td><td>Client</td><td>Prestation</td>'
-    +'<td>Statut production</td><td>Atelier</td><td>Machine</td>'
-    +'<td>Machiniste</td><td>Début</td><td>Fin prévue</td>'
-    +(canEdit?'<td>Actions</td>':'')
-    +'</tr></thead><tbody>';
+  // Grouper par statut pour vue Kanban
+  var groupes = {
+    non_lance:    {label:'⏳ En attente de lancement', color:'var(--orange)', bg:'#FEF9E7', items:[]},
+    en_production:{label:'🔧 En production',           color:'#185FA5',       bg:'#EEF2F8', items:[]},
+    prod_termine: {label:'✅ Production terminée',     color:'var(--vert)',    bg:'#E8F8F0', items:[]},
+    pret_livrer:  {label:'📦 Prêt à livrer',           color:'#6B2FA0',       bg:'#F0E6FA', items:[]},
+    livre:        {label:'🚚 Livré',                    color:'var(--gris)',   bg:'var(--fond)', items:[]}
+  };
 
   list.forEach(function(d){
     var sp=statutProdAuto(d);
-    html+='<tr>'
-      +'<td><strong>'+( d.num||'—')+'</strong></td>'
-      +'<td style="font-weight:600">'+d.client+'</td>'
-      +'<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;font-size:11px">'+( d.objet||'—')+'</td>'
-      +'<td>'+badgeStatutProd(sp)+'</td>'
-      +'<td style="font-size:11px">'+( d.atelier_production||'—')+'</td>'
-      +'<td style="font-size:11px">'+( d.machine_assignee||'—')+'</td>'
-      +'<td>'+( d.machiniste_assigne||'—')+'</td>'
-      +'<td>'+( d.date_lancement||'—')+'</td>'
-      +'<td style="font-weight:700;color:var(--bleu)">'+( d.date_fin_production||'—')+'</td>';
-
-    if(canEdit){
-      html+='<td style="white-space:nowrap">';
-      if(sp==='non_lance'){
-        html+='<button class="btn btn-p btn-sm" onclick="ouvrirProd(\''+d.id+'\')">🚀 Lancer</button>';
-      } else if(sp==='en_production'){
-        html+='<button class="btn btn-g btn-sm" onclick="terminerProduction(\''+d.id+'\')">✅ Terminer</button>'
-             +' <button class="btn btn-sm" onclick="ouvrirProd(\''+d.id+'\')">✏️</button>';
-      } else if(sp==='prod_termine'){
-        html+='<button class="btn btn-p btn-sm" onclick="marquerPretLivrer(\''+d.id+'\')">📦 Prêt livrer</button>';
-      } else if(sp==='pret_livrer'){
-        html+='<button class="btn btn-g btn-sm" onclick="marquerLivre(\''+d.id+'\')">🚚 Livré</button>';
-      } else {
-        html+='<button class="btn btn-sm" onclick="ouvrirProd(\''+d.id+'\')">✏️</button>';
-      }
-      html+='</td>';
-    }
-    html+='</tr>';
+    if(groupes[sp]) groupes[sp].items.push(d);
+    else groupes.non_lance.items.push(d);
   });
 
-  html+='</tbody></table></div>';
+  if(!list.length){
+    el.innerHTML='<div class="empty">Aucun dossier en production actif.</div>';
+    return;
+  }
+
+  var html='';
+  Object.keys(groupes).forEach(function(key){
+    var g=groupes[key];
+    if(!g.items.length && fSt && fSt!==key) return; // masquer groupes vides si filtre actif
+    if(!g.items.length) return; // masquer groupes vides
+
+    html+='<div style="margin-bottom:24px">';
+    // En-tête groupe
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;'
+         +'background:'+g.bg+';border-radius:10px 10px 0 0;border:1px solid var(--gris-l);border-bottom:none">'
+         +'<span style="font-size:13px;font-weight:800;color:'+g.color+'">'+g.label+'</span>'
+         +'<span style="background:'+g.color+';color:#fff;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700">'+g.items.length+'</span>'
+         +'</div>';
+
+    // Tableau
+    html+='<div style="background:var(--blanc);border:1px solid var(--gris-l);border-radius:0 0 10px 10px;overflow:hidden">';
+    html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html+='<thead><tr style="background:var(--fond)">'
+         +'<td style="padding:8px 14px;font-weight:700;color:var(--gris);font-size:10px;text-transform:uppercase">N° Dossier</td>'
+         +'<td style="padding:8px 14px;font-weight:700;color:var(--gris);font-size:10px;text-transform:uppercase">Client</td>'
+         +'<td style="padding:8px 14px;font-weight:700;color:var(--gris);font-size:10px;text-transform:uppercase">Prestation</td>'
+         +'<td style="padding:8px 14px;font-weight:700;color:var(--gris);font-size:10px;text-transform:uppercase">BAT</td>'
+         +'<td style="padding:8px 14px;font-weight:700;color:var(--gris);font-size:10px;text-transform:uppercase">Atelier</td>'
+         +'<td style="padding:8px 14px;font-weight:700;color:var(--gris);font-size:10px;text-transform:uppercase">Lancement</td>'
+         +'<td style="padding:8px 14px;font-weight:700;color:var(--gris);font-size:10px;text-transform:uppercase">Livraison prévue</td>'
+         +(canEdit?'<td style="padding:8px 14px;font-weight:700;color:var(--gris);font-size:10px;text-transform:uppercase">Actions</td>':'')
+         +'</tr></thead><tbody>';
+
+    g.items.forEach(function(d){
+      var sp=statutProdAuto(d);
+      var batBadge = d.bat_statut==='valide'
+        ? '<span style="color:var(--vert);font-weight:700;font-size:11px">✅ Validé</span>'
+        : d.bat_statut==='soumis'
+        ? '<span style="color:var(--orange);font-weight:700;font-size:11px">📤 En attente</span>'
+        : d.bat_statut==='refuse'
+        ? '<span style="color:var(--rouge);font-weight:700;font-size:11px">❌ Refusé</span>'
+        : '<span style="color:var(--gris);font-size:11px">⏳ Non soumis</span>';
+
+      var retard = d.date_livraison_prevue && d.date_livraison_prevue < today();
+
+      html+='<tr style="border-bottom:1px solid var(--gris-l);'+(retard&&sp==='en_production'?'background:#FFF8F0':'')+'">'+
+        '<td style="padding:10px 14px"><strong style="color:var(--noir)">'+( d.num||'—')+'</strong></td>'+
+        '<td style="padding:10px 14px;font-weight:600">'+d.client+'</td>'+
+        '<td style="padding:10px 14px;font-size:11px;color:var(--gris);max-width:180px;overflow:hidden;text-overflow:ellipsis">'+( d.objet||'—')+'</td>'+
+        '<td style="padding:10px 14px">'+batBadge+'</td>'+
+        '<td style="padding:10px 14px;font-size:11px">'+( d.atelier_production||'—')+'</td>'+
+        '<td style="padding:10px 14px;font-size:11px">'+( d.date_lancement||'—')+'</td>'+
+        '<td style="padding:10px 14px;font-size:11px;font-weight:700;color:'+(retard?'var(--rouge)':'var(--bleu)')+'">'+( d.date_livraison_prevue||'—')+(retard?' ⚠️':'')+'</td>';
+
+      if(canEdit){
+        html+='<td style="padding:10px 14px;white-space:nowrap">';
+        if(sp==='non_lance'){
+          html+='<button class="btn btn-p btn-sm" onclick="ouvrirProd(\''+d.id+'\')">🚀 Lancer</button>';
+        } else if(sp==='en_production'){
+          var aMachine = d.machine_assignee && d.machine_assignee.trim()!=='';
+          if(aMachine){
+            html+='<button class="btn btn-g btn-sm" onclick="terminerProduction(\''+d.id+'\')">✅ Terminer</button> ';
+          } else {
+            html+='<span style="font-size:10px;color:var(--orange)">⚠️ Sans machine</span> ';
+          }
+          html+='<button class="btn btn-sm" onclick="ouvrirProd(\''+d.id+'\')">✏️</button>';
+        } else if(sp==='prod_termine'){
+          html+='<button class="btn btn-p btn-sm" onclick="marquerPretLivrer(\''+d.id+'\')">📦 Prêt livrer</button>';
+        } else if(sp==='pret_livrer'){
+          html+='<button class="btn btn-g btn-sm" onclick="marquerLivre(\''+d.id+'\')">🚚 Livré</button>';
+        } else {
+          html+='<button class="btn btn-sm" onclick="ouvrirProd(\''+d.id+'\')">✏️</button>';
+        }
+        html+='</td>';
+      }
+      html+='</tr>';
+    });
+    html+='</tbody></table></div></div>';
+  });
+
   el.innerHTML=html;
 }
+
 
 // ── FORMULAIRE AFFECTATION PRODUCTION ─────────────────
 var G_PROD_ID=null;
@@ -1204,12 +1270,17 @@ function renderMachines(){
 
   getAllAteliers().forEach(function(a){
     html+='<div class="atelier-section">';
+    var isAtelierDB = G_ATELIERS_DB.find(function(x){return x.id===a.id||x.nom===a.nom;});
     html+='<div class="atelier-header" style="background:'+a.couleur+'">'
       +'<span style="font-size:20px">'+a.icone+'</span>'
       +'<div style="flex:1">'
       +'<div style="font-size:13px;font-weight:800">'+a.nom+'</div>'
       +'<div style="font-size:10px;opacity:0.8">'
       +(a.machinistesNoms||[]).join(' · ')+'</div>'
+      +(canEdit&&isAtelierDB
+        ?'<button class="btn btn-sm" style="margin-left:8px;background:rgba(255,255,255,0.2);color:#fff;border-color:rgba(255,255,255,0.4)" '
+          +'onclick="ouvrirFormAtelier(\''+a.id+'\')">'+'✏️ Modifier</button>'
+        :'')
       +'</div></div>';
     html+='<div class="machines-grid">';
     a.machines.forEach(function(m){
