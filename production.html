@@ -156,7 +156,13 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
     </div>
     <div id="dossiers-list"></div>
   </div>
-  <div class="tab-content" id="tab-machines"></div>
+  <div class="tab-content" id="tab-machines">
+  <div class="toolbar" id="toolbar-machines">
+    <button class="btn btn-p" id="btnAddAtelier" style="display:none" onclick="ouvrirFormAtelier(null)">+ Nouvel atelier</button>
+    <button class="btn btn-p" id="btnAddMachine" style="display:none" onclick="ouvrirFormMachineDB(null)">+ Nouvelle machine</button>
+  </div>
+  <div id="machines-content"></div>
+</div>
   <div class="tab-content" id="tab-machinistes">
     <div class="toolbar">
       <input type="text" id="srchMach" autocomplete="off" placeholder="Rechercher machiniste..." oninput="renderMachinistes()">
@@ -196,6 +202,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 <div class="overlay" id="ovProd"><div class="modal" id="modProd"></div></div>
 <div class="overlay" id="ovMach"><div class="modal" id="modMach"></div></div>
 <div class="overlay" id="ovMachiniste"><div class="modal" id="modMachiniste"></div></div>
+<div class="overlay" id="ovAtelier"><div class="modal" id="modAtelier"></div></div>
+<div class="overlay" id="ovMachineDB"><div class="modal" id="modMachineDB"></div></div>
 
 <script>
 const SB = supabase.createClient(
@@ -222,14 +230,54 @@ var ATELIERS = [
        format:'A3+', volume:'Moyenne série (100-1000)', couleur:true, recto_verso:true,
        productions:['Plaquettes','Brochures','Catalogues','Livrets'],
        notes:'Machine phare. Qualité photo excellente. Idéale pour documents premium.'},
-      {id:'km_c658_1', nom:'KONICA MINOLTA BIZHUB C658 (x7)',
+      {id:'km_c658_1', nom:'KONICA MINOLTA C658 N°1',
        format:'A3', volume:'Petite à moyenne série (1-500)', couleur:true, recto_verso:true,
        productions:['Cartes de visite','Flyers','Dépliants','Chemises','Affiches A3','Cartes mariage'],
-       notes:'7 machines identiques. Polyvalentes pour toutes petites et moyennes séries.'},
-      {id:'epson_x5', nom:'IMPRIMANTES EPSON (x5)',
-       format:'A4', volume:'Petite série (1-50)', couleur:true, recto_verso:false,
-       productions:['Étiquettes','Impressions haute qualité','Photos','Certificats'],
-       notes:'Qualité photo très élevée. Idéale pour petites quantités premium.'},
+       notes:'Machine numérique couleur polyvalente. Recto/verso automatique.'},
+      {id:'km_c658_2', nom:'KONICA MINOLTA C658 N°2',
+       format:'A3', volume:'Petite à moyenne série (1-500)', couleur:true, recto_verso:true,
+       productions:['Cartes de visite','Flyers','Dépliants','Chemises','Affiches A3','Cartes mariage'],
+       notes:'Machine numérique couleur polyvalente. Recto/verso automatique.'},
+      {id:'km_c658_3', nom:'KONICA MINOLTA C658 N°3',
+       format:'A3', volume:'Petite à moyenne série (1-500)', couleur:true, recto_verso:true,
+       productions:['Cartes de visite','Flyers','Dépliants','Chemises','Affiches A3','Cartes mariage'],
+       notes:'Machine numérique couleur polyvalente. Recto/verso automatique.'},
+      {id:'km_c658_4', nom:'KONICA MINOLTA C658 N°4',
+       format:'A3', volume:'Petite à moyenne série (1-500)', couleur:true, recto_verso:true,
+       productions:['Cartes de visite','Flyers','Dépliants','Chemises','Affiches A3','Cartes mariage'],
+       notes:'Machine numérique couleur polyvalente. Recto/verso automatique.'},
+      {id:'km_c658_5', nom:'KONICA MINOLTA C658 N°5',
+       format:'A3', volume:'Petite à moyenne série (1-500)', couleur:true, recto_verso:true,
+       productions:['Cartes de visite','Flyers','Dépliants','Chemises','Affiches A3','Cartes mariage'],
+       notes:'Machine numérique couleur polyvalente. Recto/verso automatique.'},
+      {id:'km_c658_6', nom:'KONICA MINOLTA C658 N°6',
+       format:'A3', volume:'Petite à moyenne série (1-500)', couleur:true, recto_verso:true,
+       productions:['Cartes de visite','Flyers','Dépliants','Chemises','Affiches A3','Cartes mariage'],
+       notes:'Machine numérique couleur polyvalente. Recto/verso automatique.'},
+      {id:'km_c658_7', nom:'KONICA MINOLTA C658 N°7',
+       format:'A3', volume:'Petite à moyenne série (1-500)', couleur:true, recto_verso:true,
+       productions:['Cartes de visite','Flyers','Dépliants','Chemises','Affiches A3','Cartes mariage'],
+       notes:'Machine numérique couleur polyvalente. Recto/verso automatique.'},
+      {id:'epson_sub1', nom:'EPSON Sublimation 1',
+       format:'A4/A3', volume:'Petite à moyenne série', couleur:true, recto_verso:false,
+       productions:['Impression sublimation','Papier transfert','Textile','Mugs','Coussins'],
+       notes:'Impression par sublimation thermique sur papier transfert. Pour textile polyester, mugs, objets.'},
+      {id:'epson_sub2', nom:'EPSON Sublimation 2',
+       format:'A4/A3', volume:'Petite à moyenne série', couleur:true, recto_verso:false,
+       productions:['Impression sublimation','Papier transfert','Textile','Mugs','Coussins'],
+       notes:'Impression par sublimation thermique. Idéale pour objets personnalisés.'},
+      {id:'epson_sub3', nom:'EPSON Sublimation 3',
+       format:'A4/A3', volume:'Petite à moyenne série', couleur:true, recto_verso:false,
+       productions:['Impression sublimation','Papier transfert','Textile'],
+       notes:'Sublimation thermique.'},
+      {id:'epson_sub4', nom:'EPSON Sublimation 4',
+       format:'A4/A3', volume:'Petite à moyenne série', couleur:true, recto_verso:false,
+       productions:['Impression sublimation','Papier transfert'],
+       notes:'Sublimation thermique.'},
+      {id:'epson_sub5', nom:'EPSON Sublimation 5',
+       format:'A4/A3', volume:'Petite à moyenne série', couleur:true, recto_verso:false,
+       productions:['Impression sublimation','Papier transfert'],
+       notes:'Sublimation thermique.'},
       {id:'etiquettes', nom:'Imprimante Étiquettes',
        format:'Rouleau', volume:'Toute quantité', couleur:true, recto_verso:false,
        productions:['Étiquettes autocollantes','Codes-barres','Étiquettes produits'],
@@ -246,10 +294,14 @@ var ATELIERS = [
     machinistes: 2,
     machinistesNoms:['M. Romaric','M. Junior'],
     machines:[
-      {id:'konica_k3208_1', nom:'KONICA K3208B-C512i (x2)',
+      {id:'konica_k3208_1', nom:'KONICA K3208B-C512i N°1',
        format:'Grand format (jusqu\'à 1.3m)', volume:'Toute quantité', couleur:true, recto_verso:false,
        productions:['Affiches grand format','Bâches','Banderoles','Roll-up','Kakémonos'],
-       notes:'2 machines identiques. Pour tout format dépassant A0.'},
+       notes:'Machine grand format. Pour tout format dépassant A0.'},
+      {id:'konica_k3208_2', nom:'KONICA K3208B-C512i N°2',
+       format:'Grand format (jusqu\'à 1.3m)', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Affiches grand format','Bâches','Banderoles','Roll-up','Kakémonos'],
+       notes:'Machine grand format. Pour tout format dépassant A0.'},
       {id:'roland_rf640', nom:'ROLAND VERSAEXPRESS RF-640',
        format:'jusqu\'à 1.6m de large', volume:'Toute quantité', couleur:true, recto_verso:false,
        productions:['Bâches PVC','Vinyle autocollant','Micro-perforé','Banderoles'],
@@ -266,18 +318,30 @@ var ATELIERS = [
     machinistes: 3,
     machinistesNoms:['Titulaire 1','Titulaire 2','Titulaire 3'],
     machines:[
-      {id:'offset_mo', nom:'Imprimante Offset M.O (x2)',
+      {id:'offset_mo1', nom:'OFFSET M.O N°1',
        format:'Variable', volume:'Grande série (1000+)', couleur:true, recto_verso:true,
        productions:['Livres','Journaux','Magazines','Grandes séries'],
-       notes:'2 machines. Offset traditionnel. Économique pour très grandes séries.'},
-      {id:'kord', nom:'Imprimante Offset KORD (x2)',
+       notes:'Offset traditionnel. Économique pour très grandes séries.'},
+      {id:'offset_mo2', nom:'OFFSET M.O N°2',
+       format:'Variable', volume:'Grande série (1000+)', couleur:true, recto_verso:true,
+       productions:['Livres','Journaux','Magazines','Grandes séries'],
+       notes:'Offset traditionnel. Économique pour très grandes séries.'},
+      {id:'kord1', nom:'OFFSET KORD N°1',
        format:'B2 (500x700mm)', volume:'Grande série (500+)', couleur:true, recto_verso:true,
        productions:['Affiches','Calendriers','Catalogues','Livres grand format'],
-       notes:'2 machines. Format B2. Idéale pour produits marketing haut volume.'},
-      {id:'kors', nom:'Imprimante Offset KORS (x2)',
+       notes:'Format B2. Idéale pour produits marketing haut volume.'},
+      {id:'kord2', nom:'OFFSET KORD N°2',
+       format:'B2 (500x700mm)', volume:'Grande série (500+)', couleur:true, recto_verso:true,
+       productions:['Affiches','Calendriers','Catalogues','Livres grand format'],
+       notes:'Format B2. Idéale pour produits marketing haut volume.'},
+      {id:'kors1', nom:'OFFSET KORS N°1',
        format:'Variable', volume:'Grande série', couleur:true, recto_verso:true,
        productions:['Dépliants','Brochures','Imprimés commerciaux'],
-       notes:'2 machines polyvalentes offset.'},
+       notes:'Machine offset polyvalente.'},
+      {id:'kors2', nom:'OFFSET KORS N°2',
+       format:'Variable', volume:'Grande série', couleur:true, recto_verso:true,
+       productions:['Dépliants','Brochures','Imprimés commerciaux'],
+       notes:'Machine offset polyvalente.'},
       {id:'gto52', nom:'OFFSET GTO 52',
        format:'B3 (360x520mm)', volume:'Moyenne à grande série (300+)', couleur:true, recto_verso:false,
        productions:['Cartes de visite','Flyers','En-têtes de lettres'],
@@ -286,10 +350,14 @@ var ATELIERS = [
        format:'Variable', volume:'Variable', couleur:false, recto_verso:false,
        productions:['Numérotation','Perforation','Découpe spéciale'],
        notes:'Machine typographique pour finitions spéciales.'},
-      {id:'theimoclean', nom:'THEIMOCLEAN THEIMER COPYMAT (x2)',
+      {id:'theimoclean1', nom:'THEIMOCLEAN THEIMER COPYMAT N°1',
        format:'Variable', volume:'Variable', couleur:false, recto_verso:false,
        productions:['Préparation plaques offset','Flashage'],
-       notes:'2 machines. Préparation technique pour impression offset.'},
+       notes:'Préparation technique pour impression offset.'},
+      {id:'theimoclean2', nom:'THEIMOCLEAN THEIMER COPYMAT N°2',
+       format:'Variable', volume:'Variable', couleur:false, recto_verso:false,
+       productions:['Préparation plaques offset','Flashage'],
+       notes:'Préparation technique pour impression offset.'},
     ]
   },
   {
@@ -310,10 +378,14 @@ var ATELIERS = [
        format:'A4/A3', volume:'Toute quantité', couleur:false, recto_verso:false,
        productions:['Documents agrafés','Rapports','Dossiers'],
        notes:'Agrafage à plat ou à cheval.'},
-      {id:'thermorelieuse', nom:'THERMORELIEUSE Dos Carré (x2)',
+      {id:'thermorelieuse1', nom:'THERMORELIEUSE Dos Carré N°1',
        format:'Variable', volume:'Toute quantité', couleur:false, recto_verso:false,
        productions:['Reliure dos carré collé','Mémoires','Rapports','Livres'],
-       notes:'2 machines. Reliure professionnelle pour documents épais.'},
+       notes:'Reliure professionnelle pour documents épais.'},
+      {id:'thermorelieuse2', nom:'THERMORELIEUSE Dos Carré N°2',
+       format:'Variable', volume:'Toute quantité', couleur:false, recto_verso:false,
+       productions:['Reliure dos carré collé','Mémoires','Rapports','Livres'],
+       notes:'Reliure professionnelle pour documents épais.'},
       {id:'emballage_auto', nom:'Machine Emballage (Nappe) Automatique',
        format:'Variable', volume:'Toute quantité', couleur:false, recto_verso:false,
        productions:['Emballage cellophane','Protection commandes','Conditionnement'],
@@ -358,10 +430,54 @@ var ATELIERS = [
     machinistes: 1,
     machinistesNoms:['Titulaire (à confirmer)'],
     machines:[
-      {id:'flocage_x12', nom:'MACHINES DE FLOCAGE (x12)',
+      {id:'flocage_1', nom:'MACHINE FLOCAGE N°1',
        format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
        productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
-       notes:'12 machines. Technique de flocage velours sur textile. Résultat mat et relief.'},
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_2', nom:'MACHINE FLOCAGE N°2',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_3', nom:'MACHINE FLOCAGE N°3',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_4', nom:'MACHINE FLOCAGE N°4',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_5', nom:'MACHINE FLOCAGE N°5',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_6', nom:'MACHINE FLOCAGE N°6',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_7', nom:'MACHINE FLOCAGE N°7',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_8', nom:'MACHINE FLOCAGE N°8',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_9', nom:'MACHINE FLOCAGE N°9',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_10', nom:'MACHINE FLOCAGE N°10',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_11', nom:'MACHINE FLOCAGE N°11',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
+      {id:'flocage_12', nom:'MACHINE FLOCAGE N°12',
+       format:'Textile', volume:'Toute quantité', couleur:true, recto_verso:false,
+       productions:['Flocage textile','Maillots','Uniformes','Vêtements personnalisés'],
+       notes:'Machine de flocage velours sur textile.'},
     ]
   },
   {
@@ -396,6 +512,8 @@ var G_AFFECTATIONS = [];  // depuis table affectations_production
 var G_MACHINISTES = [];   // depuis table machinistes
 var G_DISPOS = [];        // depuis table disponibilites_machinistes
 var G_ETATS = {};         // états machines manuels {machine_id: {statut,...}}
+var G_ATELIERS_DB = [];   // ateliers ajoutés dynamiquement
+var G_MACHINES_DB = [];   // machines ajoutées dynamiquement
 
 var MOTS_DE_PASSE = {
   'MarleneGP26':'admin','DirectionGP26':'contributeur',
@@ -472,6 +590,11 @@ async function charger(){
       G_ETATS={};
       (r5.data||[]).forEach(function(e){G_ETATS[e.machine_id]=e;});
     }
+    // Ateliers et machines dynamiques
+    var r6 = await SB.from('ateliers_db').select('*').order('nom');
+    if(!r6.error) G_ATELIERS_DB = r6.data||[];
+    var r7 = await SB.from('machines_db').select('*').order('atelier_id');
+    if(!r7.error) G_MACHINES_DB = r7.data||[];
   }catch(e){console.error('Erreur chargement:',e);}
   remplirFiltres();
   renderAll();
@@ -555,6 +678,14 @@ function badgeStatutMachine(s){
   return map[s.statut]||map.dispo;
 }
 
+function statutProdAuto(d){
+  // Si dossier soldé (etape 5) → automatiquement livré
+  if(d.etape>=5 && (!d.statut_production||d.statut_production==='non_lance')){
+    return 'livre';
+  }
+  return d.statut_production||'non_lance';
+}
+
 function badgeStatutProd(statut){
   var map={
     non_lance:'<span class="statut s-attente"><span class="dot"></span>En attente lancement</span>',
@@ -569,6 +700,53 @@ function badgeStatutProd(statut){
 function fmt(n){
   return new Intl.NumberFormat('fr-FR').format(Math.round(n||0))
     +'<sup style="font-size:60%;font-weight:600;vertical-align:super;margin-left:2px">FCFA</sup>';
+}
+
+function getAllAteliers(){
+  // Fusionner ateliers statiques + ateliers DB
+  var tous = ATELIERS.slice();
+  G_ATELIERS_DB.forEach(function(a){
+    var existe = tous.find(function(x){return x.id===a.id||x.nom===a.nom;});
+    if(!existe){
+      tous.push({
+        id: a.id,
+        nom: a.nom,
+        icone: a.icone||'🏭',
+        couleur: a.couleur||'#6B6B6B',
+        bg: a.bg||'#F0F0F0',
+        machinistes: 0,
+        machinistesNoms: [],
+        machines: G_MACHINES_DB.filter(function(m){return m.atelier_id===a.id;}).map(function(m){
+          return {
+            id: m.id,
+            nom: m.nom,
+            format: m.format||'Variable',
+            volume: m.volume||'Variable',
+            couleur: true,
+            recto_verso: false,
+            productions: m.productions?m.productions.split(','):[],
+            notes: m.notes||''
+          };
+        })
+      });
+    } else {
+      // Ajouter les machines DB à l'atelier statique existant
+      var machinesDB = G_MACHINES_DB.filter(function(m){return m.atelier_id===a.id;});
+      machinesDB.forEach(function(m){
+        var machExiste = existe.machines.find(function(x){return x.id===m.id||x.nom===m.nom;});
+        if(!machExiste){
+          existe.machines.push({
+            id: m.id, nom: m.nom,
+            format: m.format||'Variable', volume: m.volume||'Variable',
+            couleur: true, recto_verso: false,
+            productions: m.productions?m.productions.split(','):[],
+            notes: m.notes||''
+          });
+        }
+      });
+    }
+  });
+  return tous;
 }
 
 function getMachinistesAtelier(atelierNom){
@@ -703,7 +881,7 @@ function renderDossiers(){
     +'</tr></thead><tbody>';
 
   list.forEach(function(d){
-    var sp=d.statut_production||'non_lance';
+    var sp=statutProdAuto(d);
     html+='<tr>'
       +'<td><strong>'+( d.num||'—')+'</strong></td>'
       +'<td style="font-weight:600">'+d.client+'</td>'
@@ -745,9 +923,11 @@ function ouvrirProd(dossierId){
   G_PROD_ID=dossierId;
   var d=G_DOSSIERS.find(function(x){return x.id===dossierId;})||{};
   var sp=d.statut_production||'non_lance';
+  var machinesAssignees=d.machines_assignees?d.machines_assignees.split(',').map(function(s){return s.trim();}).filter(Boolean):[];
+  var machinistesAssignes=d.machinistes_assignes?d.machinistes_assignes.split(',').map(function(s){return s.trim();}).filter(Boolean):[];
 
   // Options ateliers
-  var atOpts=ATELIERS.map(function(a){
+  var atOpts=getAllAteliers().map(function(a){
     return '<option value="'+a.nom+'"'+(d.atelier_production===a.nom?' selected':'')+'>'+a.icone+' '+a.nom+'</option>';
   }).join('');
 
@@ -768,22 +948,31 @@ function ouvrirProd(dossierId){
     '<h3>'+(sp==='non_lance'?'🚀 Lancer la production':'✏️ Modifier l\'affectation')+'</h3>'
     +'<div class="modal-sub">'+d.client+' — '+(d.num||'')+(d.objet?' — '+d.objet:'')+'</div>'
 
-    +'<div class="fr2">'
     +'<div class="fr"><label>Atelier</label>'
-    +'<select id="pAtelier" onchange="rechargerMachProd(this)">'+atOpts+'</select></div>'
-    +'<div class="fr"><label>Machine</label>'
-    +'<select id="pMachine" onchange="setMidProd(this)">'+machOpts+'</select></div>'
-    +'</div>'
-    +'<input type="hidden" id="pMachineId" value="'+(d.machine_id_assignee||'')+'">'
+    +'<select id="pAtelier" onchange="rechargerCheckboxesProd(this)">'+atOpts+'</select></div>'
 
-    +'<div class="fr"><label>Machiniste assigné</label>'
-    +'<select id="pMachiniste">'+machNomOpts+'</select></div>'
+    +'<div class="fr">'
+    +'<label>Machines utilisées <span style="font-size:10px;color:var(--gris);font-weight:400">(cochez toutes les machines concernées)</span></label>'
+    +'<div id="pMachinesCheck" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;max-height:200px;overflow-y:auto;border:1px solid var(--gris-l);border-radius:8px;padding:10px">'
+    +getMachinesCheckboxes(atelierCourant, machinesAssignees)+'</div></div>'
+
+    +'<div class="fr">'
+    +'<label>Machinistes assignés <span style="font-size:10px;color:var(--gris);font-weight:400">(cochez les machinistes concernés)</span></label>'
+    +'<div id="pMachinistesCheck" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;border:1px solid var(--gris-l);border-radius:8px;padding:10px">'
+    +getMachinistesCheckboxes(atelierCourant?atelierCourant.nom:'', machinistesAssignes)+'</div></div>'
 
     +'<div class="fr2">'
-    +'<div class="fr"><label>Date de lancement</label>'
+    +'<div class="fr"><label>Date souhaitée par client</label>'
+    +'<input type="date" id="pDateSouhaitee" value="'+(d.date_livraison_souhaitee||'')+'">'
+    +'</div>'
+    +'<div class="fr"><label>Date lancement réelle</label>'
     +'<input type="date" id="pDebut" value="'+(d.date_lancement||today())+'"></div>'
-    +'<div class="fr"><label>Date de fin prévue</label>'
+    +'</div>'
+    +'<div class="fr2">'
+    +'<div class="fr"><label>Date fin de production prévue</label>'
     +'<input type="date" id="pFin" value="'+(d.date_fin_production||'')+'"></div>'
+    +'<div class="fr"><label>Date livraison prévue</label>'
+    +'<input type="date" id="pDateLivraison" value="'+(d.date_livraison_prevue||'')+'"></div>'
     +'</div>'
 
     +'<div class="fr"><label>Statut production</label>'
@@ -795,7 +984,23 @@ function ouvrirProd(dossierId){
     +'<option value="livre"'+(sp==='livre'?' selected':'')+'>🚚 Livré</option>'
     +'</select></div>'
 
-    +'<div class="fr"><label>Notes</label>'
+    +'<div style="background:var(--or-bg);border:1px solid var(--or);border-radius:8px;padding:14px;margin-bottom:12px">'
+    +'<div style="font-size:11px;font-weight:800;color:var(--noir);margin-bottom:10px">📄 BON À TIRER (BAT)</div>'
+    +'<div class="fr2">'
+    +'<div class="fr"><label>Statut BAT</label>'
+    +'<select id="pBatStatut">'
+    +'<option value="non_soumis"'+(d.bat_statut==='non_soumis'||!d.bat_statut?' selected':'')+'>⏳ Non soumis au client</option>'
+    +'<option value="soumis"'+(d.bat_statut==='soumis'?' selected':'')+'>📤 Soumis — en attente validation</option>'
+    +'<option value="valide"'+(d.bat_statut==='valide'?' selected':'')+'>✅ Validé par le client</option>'
+    +'<option value="refuse"'+(d.bat_statut==='refuse'?' selected':'')+'>❌ Refusé — correction en cours</option>'
+    +'</select></div>'
+    +'<div class="fr"><label>Date validation BAT</label>'
+    +'<input type="date" id="pBatDate" value="'+(d.bat_date_validation||'')+'">'
+    +'</div></div>'
+    +'<div class="fr"><label>Référence / Notes BAT</label>'
+    +'<input id="pBatRef" value="'+(d.bat_ref||'')+'" placeholder="Ex: BAT_CLIENT_v2.pdf — corrections demandées...">'
+    +'</div></div>'
+    +'<div class="fr"><label>Notes production</label>'
     +'<textarea id="pNotes" rows="2">'+(d.notes_production||'')+'</textarea></div>'
 
     +'<div class="fa">'
@@ -804,6 +1009,38 @@ function ouvrirProd(dossierId){
     +'</div>';
 
   document.getElementById('ovProd').classList.add('open');
+}
+
+function getMachinesCheckboxes(atelier, selected){
+  if(!atelier) return '<span style="color:var(--gris);font-size:11px">Sélectionnez un atelier</span>';
+  var sel = Array.isArray(selected) ? selected : (selected ? selected.split(',') : []);
+  return atelier.machines.map(function(m){
+    var s = statutMachine(m.id);
+    var dispo = s.statut==='dispo' ? '✅' : s.statut==='occupe' ? '🟡' : '🔴';
+    var checked = sel.indexOf(m.nom)>-1 ? 'checked' : '';
+    var disabled = s.statut==='panne' ? 'disabled' : '';
+    return '<label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding:3px 0">'      +'<input type="checkbox" name="pMachine" value="'+m.nom+'" data-id="'+m.id+'" '+checked+' '+disabled+'>'      +dispo+' '+m.nom+'</label>';
+  }).join('');
+}
+
+function getMachinistesCheckboxes(atelierNom, selected){
+  var noms = atelierNom ? getMachinistesAtelier(atelierNom) : tousLesMachinistes();
+  var sel = Array.isArray(selected) ? selected : (selected ? selected.split(',') : []);
+  return noms.map(function(nom){
+    var s = statutMachiniste(nom);
+    var ico = s==='absent' ? '❌' : s==='conge' ? '🏖️' : '✅';
+    var checked = sel.indexOf(nom)>-1 ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding:3px 0">'      +'<input type="checkbox" name="pMachiniste" value="'+nom+'" '+checked+'>'      +ico+' '+nom+'</label>';
+  }).join('');
+}
+
+function rechargerCheckboxesProd(sel){
+  var atelierNom = sel.value;
+  var atelier = ATELIERS.find(function(a){return a.nom===atelierNom;})||ATELIERS[0];
+  var machDiv = document.getElementById('pMachinesCheck');
+  if(machDiv) machDiv.innerHTML = getMachinesCheckboxes(atelier, []);
+  var machNomDiv = document.getElementById('pMachinistesCheck');
+  if(machNomDiv) machNomDiv.innerHTML = getMachinistesCheckboxes(atelierNom, []);
 }
 
 function getMachineOptions(atelier, machineSelectionnee){
@@ -857,9 +1094,17 @@ function setMidProd(sel){
 async function sauverProd(){
   if(!G_PROD_ID) return;
   var statut=document.getElementById('pStatut').value;
-  var machine=document.getElementById('pMachine').value;
-  var machineId=document.getElementById('pMachineId').value;
-  var machiniste=document.getElementById('pMachiniste').value;
+  // Lire les machines cochées
+  var machinesChecked=Array.from(document.querySelectorAll('input[name="pMachine"]:checked'))
+    .map(function(cb){return cb.value;});
+  var machinesIds=Array.from(document.querySelectorAll('input[name="pMachine"]:checked'))
+    .map(function(cb){return cb.getAttribute('data-id');});
+  var machine=machinesChecked.join(', ');
+  var machineId=machinesIds.join(', ');
+  // Lire les machinistes cochés
+  var machinistesChecked=Array.from(document.querySelectorAll('input[name="pMachiniste"]:checked'))
+    .map(function(cb){return cb.value;});
+  var machiniste=machinistesChecked.join(', ');
   var debut=document.getElementById('pDebut').value||null;
   var fin=document.getElementById('pFin').value||null;
   var atelier=document.getElementById('pAtelier').value;
@@ -867,14 +1112,31 @@ async function sauverProd(){
 
   try{
     // Mettre à jour le dossier
+    var batStatut=document.getElementById('pBatStatut')?document.getElementById('pBatStatut').value:null;
+    var batDate=document.getElementById('pBatDate')?document.getElementById('pBatDate').value:null;
+    var batRef=document.getElementById('pBatRef')?document.getElementById('pBatRef').value:null;
+    var dateSouhaitee=document.getElementById('pDateSouhaitee')?document.getElementById('pDateSouhaitee').value:null;
+    var dateLivraison=document.getElementById('pDateLivraison')?document.getElementById('pDateLivraison').value:null;
+    // Bloquer si BAT non validé et statut = en_production
+    if(statut==='en_production' && batStatut !== 'valide'){
+      alert('⚠️ Impossible de lancer la production : le BAT n\'a pas encore été validé par le client.\nValidez le BAT avant de lancer.');
+      return;
+    }
     var updates={
       statut_production:statut,
       atelier_production:atelier,
       machine_assignee:machine,
       machine_id_assignee:machineId,
       machiniste_assigne:machiniste,
-      date_lancement:debut,
-      date_fin_production:fin,
+      machines_assignees:machine,
+      machinistes_assignes:machiniste,
+      date_lancement:debut||null,
+      date_fin_production:fin||null,
+      date_livraison_souhaitee:dateSouhaitee||null,
+      date_livraison_prevue:dateLivraison||null,
+      bat_statut:batStatut||'non_soumis',
+      bat_date_validation:batDate||null,
+      bat_ref:batRef||null,
       notes_production:notes
     };
     var res=await SB.from('dossiers').update(updates).eq('id',G_PROD_ID);
@@ -883,22 +1145,22 @@ async function sauverProd(){
     // Créer/mettre à jour affectation si en production
     if(statut==='en_production' && machine && debut && fin){
       var d=G_DOSSIERS.find(function(x){return x.id===G_PROD_ID;})||{};
-      var affData={
-        dossier_id:G_PROD_ID,
-        dossier_num:d.num||'',
-        machine_id:machineId,
-        machine_nom:machine,
-        machiniste:machiniste,
-        date_debut:debut,
-        date_fin:fin,
-        statut:'en_cours'
-      };
-      // Chercher si affectation existante
-      var existing=G_AFFECTATIONS.find(function(a){return a.dossier_id===G_PROD_ID;});
-      if(existing){
-        await SB.from('affectations_production').update(affData).eq('id',existing.id);
-      } else {
-        await SB.from('affectations_production').insert(affData);
+      // Supprimer anciennes affectations et recréer
+      await SB.from('affectations_production').delete().eq('dossier_id',G_PROD_ID);
+      // Créer une affectation par machine cochée
+      var mIds = machinesIds;
+      var mNoms = machinesChecked;
+      for(var mi=0; mi<mIds.length; mi++){
+        await SB.from('affectations_production').insert({
+          dossier_id:G_PROD_ID,
+          dossier_num:d.num||'',
+          machine_id:mIds[mi],
+          machine_nom:mNoms[mi],
+          machiniste:machiniste,
+          date_debut:debut,
+          date_fin:fin,
+          statut:'en_cours'
+        });
       }
     }
     fermer('ovProd');
@@ -932,12 +1194,15 @@ async function marquerLivre(dossierId){
 
 // ── MACHINES ──────────────────────────────────────────
 function renderMachines(){
+  var canEdit=(G_ROLE==='admin'||G_ROLE==='production');
+  document.getElementById('btnAddAtelier')&&(document.getElementById('btnAddAtelier').style.display=canEdit?'inline-block':'none');
+  document.getElementById('btnAddMachine')&&(document.getElementById('btnAddMachine').style.display=canEdit?'inline-block':'none');
   var el=document.getElementById('tab-machines');
   if(!el) return;
   var canEdit=(G_ROLE==='admin'||G_ROLE==='production');
   var html='';
 
-  ATELIERS.forEach(function(a){
+  getAllAteliers().forEach(function(a){
     html+='<div class="atelier-section">';
     html+='<div class="atelier-header" style="background:'+a.couleur+'">'
       +'<span style="font-size:20px">'+a.icone+'</span>'
@@ -986,7 +1251,8 @@ function renderMachines(){
     });
     html+='</div></div>';
   });
-  el.innerHTML=html;
+  var mc=document.getElementById('machines-content');
+  if(mc) mc.innerHTML=html; else el.innerHTML=html;
 }
 
 var G_MACHINE_COURANTE=null;
@@ -1062,7 +1328,13 @@ function renderMachinistes(){
     var aff=G_AFFECTATIONS.find(function(a){
       return a.machiniste===nom && a.statut!=='termine' && a.date_debut<=td && a.date_fin>=td;
     });
-    var dosStr=aff?(aff.dossier_num||'—')+(aff.date_fin?' jusqu\'au '+aff.date_fin:''):'—';
+    var dosClient='—';
+    if(aff){
+      var dosLie=G_DOSSIERS.find(function(d){return d.id===aff.dossier_id;});
+      dosClient=dosLie?(dosLie.client||dosLie.num||'—'):'—';
+      if(aff.date_fin) dosClient+=' (jusqu\'au '+aff.date_fin+')';
+    }
+    var dosStr=dosClient;
 
     html+='<tr>'
       +'<td><strong>'+nom+'</strong></td>'
@@ -1071,7 +1343,15 @@ function renderMachinistes(){
       +'<td style="font-size:11px">'+dosStr+'</td>';
 
     if(canEdit){
-      html+='<td><select onchange="changerDispo(\''+nom+'\',this.value)" '
+      // Boutons modifier/supprimer pour machinistes en base
+      var machDB=G_MACHINISTES.find(function(x){return x.nom===nom;});
+      html+='<td style="white-space:nowrap">';
+      if(machDB){
+        html+='<button class="btn btn-sm" onclick="ouvrirFormMachiniste(\''+machDB.id+'\')" style="margin-right:4px">✏️</button>';
+        html+='<button class="btn btn-sm btn-r" onclick="supprimerMachiniste(\''+machDB.id+'\')" style="margin-right:4px">🗑️</button>';
+      }
+      html+='</td><td>';
+      html+='<select onchange="changerDispo(\''+nom+'\',this.value)" '
         +'style="padding:4px 8px;border-radius:6px;border:1px solid var(--gris-l);font-size:11px">'
         +'<option value="present"'+(s==='present'?' selected':'')+'>✅ Présent</option>'
         +'<option value="absent"'+(s==='absent'?' selected':'')+'>❌ Absent</option>'
@@ -1082,6 +1362,74 @@ function renderMachinistes(){
   });
   html+='</tbody></table></div>';
   el.innerHTML=html;
+}
+
+var G_MACHINISTE_ID=null;
+
+function ouvrirFormMachiniste(id){
+  G_MACHINISTE_ID=id;
+  var m=id?(G_MACHINISTES.find(function(x){return x.id===id;})||{}):{};
+  var atOpts=Object.keys(MACHINISTES_PAR_ATELIER).map(function(a){
+    return '<option value="'+a+'"'+(m.atelier===a?' selected':'')+'>'+a+'</option>';
+  }).join('');
+  document.getElementById('modMachiniste').innerHTML=
+    '<h3>'+(id?'Modifier':'Ajouter')+' un machiniste</h3>'
+    +'<div class="modal-sub">Personnel de production</div>'
+    +'<div class="fr2">'
+    +'<div class="fr"><label>Nom & Prénom</label>'
+    +'<input id="mNom" value="'+(m.nom||'')+'" placeholder="Ex: M. Dupont"></div>'
+    +'<div class="fr"><label>Atelier</label>'
+    +'<select id="mAtelier">'+atOpts+'</select></div>'
+    +'</div>'
+    +'<div class="fr"><label>Machines maîtrisées</label>'
+    +'<input id="mMachines" value="'+(m.machines||'')+'" placeholder="Ex: RISO 9150, Konica C658..."></div>'
+    +'<div class="fr"><label>Disponibilité</label>'
+    +'<select id="mDispo">'
+    +'<option value="present"'+(m.disponibilite==='present'||!m.disponibilite?' selected':'')+'>✅ Présent</option>'
+    +'<option value="absent"'+(m.disponibilite==='absent'?' selected':'')+'>❌ Absent</option>'
+    +'<option value="conge"'+(m.disponibilite==='conge'?' selected':'')+'>🏖️ Congé</option>'
+    +'</select></div>'
+    +'<div class="fr"><label>Notes</label>'
+    +'<textarea id="mNotes" rows="2">'+(m.notes||'')+'</textarea></div>'
+    +'<div class="fa">'
+    +'<button class="btn" onclick="fermer(\'ovMachiniste\')">Annuler</button>'
+    +'<button class="btn btn-p" onclick="sauverMachiniste()">Enregistrer</button>'
+    +'</div>';
+  document.getElementById('ovMachiniste').classList.add('open');
+}
+
+async function sauverMachiniste(){
+  var nom=document.getElementById('mNom').value.trim();
+  if(!nom){alert('Le nom est obligatoire.');return;}
+  var data={
+    nom:nom,
+    atelier:document.getElementById('mAtelier').value,
+    machines:document.getElementById('mMachines').value.trim(),
+    disponibilite:document.getElementById('mDispo').value,
+    notes:document.getElementById('mNotes').value.trim()
+  };
+  try{
+    if(G_MACHINISTE_ID){
+      await SB.from('machinistes').update(data).eq('id',G_MACHINISTE_ID);
+    } else {
+      // Ajouter aussi dans MACHINISTES_PAR_ATELIER
+      if(!MACHINISTES_PAR_ATELIER[data.atelier]) MACHINISTES_PAR_ATELIER[data.atelier]=[];
+      if(MACHINISTES_PAR_ATELIER[data.atelier].indexOf(nom)===-1){
+        MACHINISTES_PAR_ATELIER[data.atelier].push(nom);
+      }
+      await SB.from('machinistes').insert(data);
+    }
+    fermer('ovMachiniste');
+    await charger();
+  }catch(e){alert('Erreur: '+e.message);}
+}
+
+async function supprimerMachiniste(id){
+  if(!confirm('Supprimer ce machiniste ?')) return;
+  try{
+    await SB.from('machinistes').delete().eq('id',id);
+    await charger();
+  }catch(e){alert('Erreur: '+e.message);}
 }
 
 async function changerDispo(nom, statut){
@@ -1126,7 +1474,7 @@ function renderPlanning(){
   });
   html+='</tr></thead><tbody>';
 
-  var ateliersFiltres=fAt?ATELIERS.filter(function(a){return a.nom===fAt;}):ATELIERS;
+  var ateliersFiltres=fAt?getAllAteliers().filter(function(a){return a.nom===fAt;}):getAllAteliers();
 
   ateliersFiltres.forEach(function(a){
     // Ligne titre atelier
@@ -1178,6 +1526,128 @@ function renderPlanning(){
 
   html+='</tbody></table></div>';
   el.innerHTML=html;
+}
+
+// ── GESTION ATELIERS & MACHINES DB ──────────────────
+var G_ATELIER_EDIT_ID=null;
+var G_MACHINE_DB_EDIT_ID=null;
+
+function ouvrirFormAtelier(id){
+  G_ATELIER_EDIT_ID=id;
+  var a=id?(G_ATELIERS_DB.find(function(x){return x.id===id;})||{}):{};
+  document.getElementById('modAtelier').innerHTML=
+    '<h3>'+(id?'Modifier':'Nouvel')+'atelier</h3>'
+    +'<div class="modal-sub">Atelier de production</div>'
+    +'<div class="fr2">'
+    +'<div class="fr"><label>Nom de l\'atelier</label>'
+    +'<input id="aNom" value="'+(a.nom||'')+'" placeholder="Ex: Atelier Sérigraphie"></div>'
+    +'<div class="fr"><label>Icône (emoji)</label>'
+    +'<input id="aIcone" value="'+(a.icone||'🏭')+'" placeholder="🏭" style="font-size:20px;width:80px"></div>'
+    +'</div>'
+    +'<div class="fr2">'
+    +'<div class="fr"><label>Couleur principale (hex)</label>'
+    +'<input type="color" id="aCouleur" value="'+(a.couleur||'#185FA5')+'"></div>'
+    +'<div class="fr"><label>Couleur fond (hex)</label>'
+    +'<input type="color" id="aBg" value="'+(a.bg||'#EEF2F8')+'"></div>'
+    +'</div>'
+    +'<div class="fa">'
+    +'<button class="btn" onclick="fermer(\'ovAtelier\')">Annuler</button>'
+    +(id?'<button class="btn btn-r" onclick="supprimerAtelier(\''+id+'\')">Supprimer</button>':'')
+    +'<button class="btn btn-p" onclick="sauverAtelier()">Enregistrer</button>'
+    +'</div>';
+  document.getElementById('ovAtelier').classList.add('open');
+}
+
+async function sauverAtelier(){
+  var nom=document.getElementById('aNom').value.trim();
+  if(!nom){alert('Le nom est obligatoire.');return;}
+  var data={
+    nom:nom,
+    icone:document.getElementById('aIcone').value.trim()||'🏭',
+    couleur:document.getElementById('aCouleur').value,
+    bg:document.getElementById('aBg').value
+  };
+  try{
+    if(G_ATELIER_EDIT_ID){
+      await SB.from('ateliers_db').update(data).eq('id',G_ATELIER_EDIT_ID);
+    } else {
+      await SB.from('ateliers_db').insert(data);
+    }
+    fermer('ovAtelier');
+    await charger();
+    renderMachines();
+  }catch(e){alert('Erreur: '+e.message);}
+}
+
+async function supprimerAtelier(id){
+  if(!confirm('Supprimer cet atelier et ses machines ?')) return;
+  await SB.from('machines_db').delete().eq('atelier_id',id);
+  await SB.from('ateliers_db').delete().eq('id',id);
+  await charger();
+  renderMachines();
+}
+
+function ouvrirFormMachineDB(id){
+  G_MACHINE_DB_EDIT_ID=id;
+  var m=id?(G_MACHINES_DB.find(function(x){return x.id===id;})||{}):{};
+  var atOpts=getAllAteliers().map(function(a){
+    return '<option value="'+a.id+'"'+(m.atelier_id===a.id?' selected':'')+'>'+a.icone+' '+a.nom+'</option>';
+  }).join('');
+  document.getElementById('modMachineDB').innerHTML=
+    '<h3>'+(id?'Modifier':'Nouvelle')+' machine</h3>'
+    +'<div class="modal-sub">Machine de production</div>'
+    +'<div class="fr"><label>Atelier</label>'
+    +'<select id="mdbAtelier">'+atOpts+'</select></div>'
+    +'<div class="fr2">'
+    +'<div class="fr"><label>Nom de la machine</label>'
+    +'<input id="mdbNom" value="'+(m.nom||'')+'" placeholder="Ex: HEIDELBERG N°1"></div>'
+    +'<div class="fr"><label>Format max</label>'
+    +'<input id="mdbFormat" value="'+(m.format||'')+'" placeholder="Ex: A2, Grand format..."></div>'
+    +'</div>'
+    +'<div class="fr2">'
+    +'<div class="fr"><label>Volume recommandé</label>'
+    +'<input id="mdbVolume" value="'+(m.volume||'')+'" placeholder="Ex: Grande série (1000+)"></div>'
+    +'<div class="fr"><label>Productions possibles</label>'
+    +'<input id="mdbProductions" value="'+(m.productions||'')+'" placeholder="Ex: Affiches, Bâches... (séparés par virgule)"></div>'
+    +'</div>'
+    +'<div class="fr"><label>Notes / Description</label>'
+    +'<textarea id="mdbNotes" rows="2">'+(m.notes||'')+'</textarea></div>'
+    +'<div class="fa">'
+    +'<button class="btn" onclick="fermer(\'ovMachineDB\')">Annuler</button>'
+    +(id?'<button class="btn btn-r" onclick="supprimerMachineDB(\''+id+'\')">Supprimer</button>':'')
+    +'<button class="btn btn-p" onclick="sauverMachineDB()">Enregistrer</button>'
+    +'</div>';
+  document.getElementById('ovMachineDB').classList.add('open');
+}
+
+async function sauverMachineDB(){
+  var nom=document.getElementById('mdbNom').value.trim();
+  if(!nom){alert('Le nom est obligatoire.');return;}
+  var data={
+    atelier_id:document.getElementById('mdbAtelier').value,
+    nom:nom,
+    format:document.getElementById('mdbFormat').value.trim(),
+    volume:document.getElementById('mdbVolume').value.trim(),
+    productions:document.getElementById('mdbProductions').value.trim(),
+    notes:document.getElementById('mdbNotes').value.trim()
+  };
+  try{
+    if(G_MACHINE_DB_EDIT_ID){
+      await SB.from('machines_db').update(data).eq('id',G_MACHINE_DB_EDIT_ID);
+    } else {
+      await SB.from('machines_db').insert(data);
+    }
+    fermer('ovMachineDB');
+    await charger();
+    renderMachines();
+  }catch(e){alert('Erreur: '+e.message);}
+}
+
+async function supprimerMachineDB(id){
+  if(!confirm('Supprimer cette machine ?')) return;
+  await SB.from('machines_db').delete().eq('id',id);
+  await charger();
+  renderMachines();
 }
 
 // ── INIT ──────────────────────────────────────────────
