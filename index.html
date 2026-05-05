@@ -84,6 +84,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 <div class="topbar">
   <div class="topbar-title">GRAPHIC PRINT — Gestion commerciale <span class="sync-badge" id="syncBadge">Synchronisé</span></div>
   <span id="modeBadge" class="badge badge-lecture">Mode lecture</span>
+  <a href="production.html" class="btn-top" style="text-decoration:none">🏭 Production</a>
   <button class="btn-top" id="btnConnexion" onclick="ouvrirLogin()">Connexion</button>
   <button class="btn-top" id="btnLogout" onclick="seDeconnecter()" style="display:none">Déconnexion</button>
 </div>
@@ -774,6 +775,7 @@ async function sauvegarderFormDossier(){
   var data={
     num:num, client:client,
     commercial:document.getElementById('fComm')?document.getElementById('fComm').value:'C1',
+    statut_production: d.statut_production||'non_lance',
     interlocuteur:document.getElementById('fInterlocuteur')?document.getElementById('fInterlocuteur').value:'',
     telephone:document.getElementById('fTelephone')?document.getElementById('fTelephone').value:'',
     email:document.getElementById('fEmail')?document.getElementById('fEmail').value:'',
@@ -994,6 +996,17 @@ var COMMERCIAUX=[
 })();
 function getC(id){return COMMERCIAUX.find(function(c){return c.id===id;})||COMMERCIAUX[0];}
 function nomC(id){return getC(id).nom;}
+
+function badgeProd(statut){
+  if(!statut || statut==='non_lance') return '';
+  var map = {
+    'en_attente':  '<span style="background:#FEF9E7;color:#C07A00;padding:2px 7px;border-radius:999px;font-size:9px;font-weight:700">⏳ En attente</span>',
+    'en_production':'<span style="background:#FEF3E2;color:#D68910;padding:2px 7px;border-radius:999px;font-size:9px;font-weight:700">🔧 En production</span>',
+    'prod_termine': '<span style="background:#E8F8F0;color:#2D7A4F;padding:2px 7px;border-radius:999px;font-size:9px;font-weight:700">✅ Prêt à livrer</span>',
+    'livre':        '<span style="background:#EEF2F8;color:#185FA5;padding:2px 7px;border-radius:999px;font-size:9px;font-weight:700">🚚 Livré</span>'
+  };
+  return map[statut] || '';
+}
 
 function renderCommerciaux(){
   var el=document.getElementById('tab-commerciaux');
