@@ -1014,8 +1014,10 @@ function ouvrirProd(dossierId){
     '<h3>'+(sp==='non_lance'?'🚀 Lancer la production':'✏️ Modifier l\'affectation')+'</h3>'
     +'<div class="modal-sub">'+d.client+' — '+(d.num||'')+(d.objet?' — '+d.objet:'')+'</div>'
 
-    +'<div class="fr"><label>Atelier</label>'
-    +'<select id="pAtelier" onchange="rechargerCheckboxesProd(this)">'+atOpts+'</select></div>'
+    +'<div class="fr">'
+    +'<label>Ateliers concernés <span style="font-size:10px;color:var(--gris);font-weight:400">(cochez tous les ateliers impliqués)</span></label>'
+    +'<div id="pAteliersCheck" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;border:1px solid var(--gris-l);border-radius:8px;padding:10px">'
+    +getAteliersCheckboxes(d.ateliers_assignes||d.atelier_production||'')+'</div></div>'
 
     +'<div class="fr">'
     +'<label>Machines utilisées <span style="font-size:10px;color:var(--gris);font-weight:400">(cochez toutes les machines concernées)</span></label>'
@@ -1077,6 +1079,52 @@ function ouvrirProd(dossierId){
   document.getElementById('ovProd').classList.add('open');
 }
 
+function getAteliersCheckboxes(selected){
+  var sel = selected ? selected.split(',').map(function(s){return s.trim();}) : [];
+  return getAllAteliers().map(function(a){
+    var checked = sel.indexOf(a.nom)>-1 ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding:3px 0">'      +'<input type="checkbox" name="pAtelier" value="'+a.nom+'" '+checked+' onchange="rechargerCheckboxesMulti()">'      +a.icone+' '+a.nom+'</label>';
+  }).join('');
+}
+
+function rechargerCheckboxesMulti(){
+  var ateliersCoches = Array.from(document.querySelectorAll('input[name="pAtelier"]:checked'))
+    .map(function(cb){return cb.value;});
+  // Recharger machines et machinistes pour tous les ateliers cochés
+  var machDiv = document.getElementById('pMachinesCheck');
+  var machNomDiv = document.getElementById('pMachinistesCheck');
+  if(!machDiv || !machNomDiv) return;
+  var machHtml = '';
+  var machNomHtml = '';
+  var machsDeja = [];
+  var nomsDeja = [];
+  ateliersCoches.forEach(function(atelierNom){
+    var atelier = getAllAteliers().find(function(a){return a.nom===atelierNom;});
+    if(atelier){
+      machHtml += '<div style="font-size:10px;font-weight:800;color:'+atelier.couleur
+        +';text-transform:uppercase;letter-spacing:0.5px;margin:6px 0 3px">'+atelier.icone+' '+atelier.nom+'</div>';
+      atelier.machines.forEach(function(m){
+        if(machsDeja.indexOf(m.id)===-1){
+          machsDeja.push(m.id);
+          var s = statutMachine(m.id);
+          var dispo = s.statut==='dispo' ? '✅' : s.statut==='occupe' ? '🟡' : '🔴';
+          machHtml += '<label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding:2px 0">'            +'<input type="checkbox" name="pMachine" value="'+m.nom+'" data-id="'+m.id+'">'            +dispo+' '+m.nom+'</label>';
+        }
+      });
+      getMachinistesAtelier(atelierNom).forEach(function(nom){
+        if(nomsDeja.indexOf(nom)===-1){
+          nomsDeja.push(nom);
+          var s = statutMachiniste(nom);
+          var ico = s==='absent' ? '❌' : s==='conge' ? '🏖️' : '✅';
+          machNomHtml += '<label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding:2px 0">'            +'<input type="checkbox" name="pMachiniste" value="'+nom+'">'            +ico+' '+nom+'</label>';
+        }
+      });
+    }
+  });
+  machDiv.innerHTML = machHtml || '<span style="font-size:11px;color:var(--gris)">Cochez un atelier pour voir les machines</span>';
+  machNomDiv.innerHTML = machNomHtml || '<span style="font-size:11px;color:var(--gris)">Cochez un atelier pour voir les machinistes</span>';
+}
+
 function getMachinesCheckboxes(atelier, selected){
   if(!atelier) return '<span style="color:var(--gris);font-size:11px">Sélectionnez un atelier</span>';
   var sel = Array.isArray(selected) ? selected : (selected ? selected.split(',') : []);
@@ -1101,6 +1149,9 @@ function getMachinistesCheckboxes(atelierNom, selected){
 }
 
 function rechargerCheckboxesProd(sel){
+  rechargerCheckboxesMulti();
+}
+function rechargerCheckboxesProdOLD(sel){
   var atelierNom = sel.value;
   var atelier = ATELIERS.find(function(a){return a.nom===atelierNom;})||ATELIERS[0];
   var machDiv = document.getElementById('pMachinesCheck');
@@ -1191,6 +1242,7 @@ async function sauverProd(){
     var updates={
       statut_production:statut,
       atelier_production:atelier,
+      ateliers_assignes:atelier,
       machine_assignee:machine,
       machine_id_assignee:machineId,
       machiniste_assigne:machiniste,
@@ -1378,26 +1430,54 @@ function renderMachinistes(){
   var canEdit=(G_ROLE==='admin'||G_ROLE==='production');
   var td=today();
 
-  var tousNoms=tousLesMachinistes();
-  var filtres=tousNoms.filter(function(n){return !q||n.toLowerCase().includes(q);});
-
-  var html='<div class="table-wrap"><table class="dtable">'
-    +'<thead><tr><td>Machiniste</td><td>Atelier</td><td>Statut aujourd\'hui</td>'
-    +'<td>Dossier en cours</td>'+(canEdit?'<td>Disponibilité</td>':'')+'</tr></thead><tbody>';
-
-  filtres.forEach(function(nom){
-    var s=statutMachiniste(nom);
-    var atelierNom='—';
-    Object.keys(MACHINISTES_PAR_ATELIER).forEach(function(k){
-      if(MACHINISTES_PAR_ATELIER[k].indexOf(nom)>-1) atelierNom=k;
+  // Construire liste complète : statiques + base de données
+  var tousNoms=[];
+  // Machinistes statiques de base
+  Object.keys(MACHINISTES_PAR_ATELIER).forEach(function(atelier){
+    MACHINISTES_PAR_ATELIER[atelier].forEach(function(nom){
+      tousNoms.push({nom:nom, atelier:atelier, source:'statique', id:null});
     });
+  });
+  // Machinistes ajoutés en base (priorité sur statiques)
+  G_MACHINISTES.forEach(function(m){
+    var existant = tousNoms.find(function(x){return x.nom===m.nom;});
+    if(existant){
+      existant.id = m.id;
+      existant.atelier = m.atelier||existant.atelier;
+      existant.source = 'db';
+      existant.machines = m.machines;
+      existant.notes = m.notes;
+    } else {
+      tousNoms.push({nom:m.nom, atelier:m.atelier||'—', source:'db', id:m.id, machines:m.machines, notes:m.notes});
+    }
+  });
+
+  var filtres = tousNoms.filter(function(m){
+    return !q || m.nom.toLowerCase().includes(q) || (m.atelier||'').toLowerCase().includes(q);
+  });
+
+  var html='';
+  if(canEdit){
+    html+='<div style="margin-bottom:16px">'
+      +'<button class="btn btn-p" onclick="ouvrirFormMachiniste(null)">+ Ajouter machiniste</button>'
+      +'</div>';
+  }
+
+  html+='<div class="table-wrap"><table class="dtable">'
+    +'<thead><tr>'
+    +'<td>Nom</td><td>Atelier</td><td>Machines maîtrisées</td>'
+    +'<td>Statut aujourd\'hui</td><td>Dossier en cours</td>'
+    +(canEdit?'<td>Disponibilité</td><td>Actions</td>':'')
+    +'</tr></thead><tbody>';
+
+  filtres.forEach(function(m){
+    var s=statutMachiniste(m.nom);
     var badge=s==='absent'?'<span class="statut s-panne"><span class="dot"></span>Absent</span>'
             :s==='occupe'?'<span class="statut s-prod"><span class="dot"></span>En production</span>'
             :s==='conge'?'<span class="statut s-occupe"><span class="dot"></span>Congé</span>'
             :'<span class="statut s-dispo"><span class="dot"></span>Disponible</span>';
-    // Dossier en cours
     var aff=G_AFFECTATIONS.find(function(a){
-      return a.machiniste===nom && a.statut!=='termine' && a.date_debut<=td && a.date_fin>=td;
+      return a.machiniste===m.nom && a.statut!=='termine' && a.date_debut<=td && a.date_fin>=td;
     });
     var dosClient='—';
     if(aff){
@@ -1405,103 +1485,38 @@ function renderMachinistes(){
       dosClient=dosLie?(dosLie.client||dosLie.num||'—'):'—';
       if(aff.date_fin) dosClient+=' (jusqu\'au '+aff.date_fin+')';
     }
-    var dosStr=dosClient;
 
     html+='<tr>'
-      +'<td><strong>'+nom+'</strong></td>'
-      +'<td style="font-size:11px">'+atelierNom+'</td>'
+      +'<td><strong>'+m.nom+'</strong>'
+      +(m.source==='db'?'':' <span style="font-size:9px;color:var(--gris);background:var(--fond);padding:1px 5px;border-radius:999px">par défaut</span>')
+      +'</td>'
+      +'<td style="font-size:11px">'+( m.atelier||'—')+'</td>'
+      +'<td style="font-size:11px;color:var(--gris)">'+( m.machines||'—')+'</td>'
       +'<td>'+badge+'</td>'
-      +'<td style="font-size:11px">'+dosStr+'</td>';
+      +'<td style="font-size:11px">'+dosClient+'</td>';
 
     if(canEdit){
-      // Boutons modifier/supprimer pour machinistes en base
-      var machDB=G_MACHINISTES.find(function(x){return x.nom===nom;});
-      html+='<td style="white-space:nowrap">';
-      if(machDB){
-        html+='<button class="btn btn-sm" onclick="ouvrirFormMachiniste(\''+machDB.id+'\')" style="margin-right:4px">✏️</button>';
-        html+='<button class="btn btn-sm btn-r" onclick="supprimerMachiniste(\''+machDB.id+'\')" style="margin-right:4px">🗑️</button>';
-      }
-      html+='</td><td>';
-      html+='<select onchange="changerDispo(\''+nom+'\',this.value)" '
+      html+='<td>'
+        +'<select onchange="changerDispo(\''+m.nom+'\',this.value)" '
         +'style="padding:4px 8px;border-radius:6px;border:1px solid var(--gris-l);font-size:11px">'
         +'<option value="present"'+(s==='present'?' selected':'')+'>✅ Présent</option>'
         +'<option value="absent"'+(s==='absent'?' selected':'')+'>❌ Absent</option>'
         +'<option value="conge"'+(s==='conge'?' selected':'')+'>🏖️ Congé</option>'
-        +'</select></td>';
+        +'</select></td>'
+        +'<td style="white-space:nowrap">'
+        +'<button class="btn btn-sm" onclick="ouvrirFormMachiniste('+(m.id?'\''+m.id+'\'':'null,\''+m.nom+'\'')+')">✏️ Modifier</button>';
+      if(m.id){
+        html+=' <button class="btn btn-sm btn-r" onclick="supprimerMachiniste(\''+m.id+'\')">🗑️</button>';
+      }
+      html+='</td>';
     }
     html+='</tr>';
   });
+
   html+='</tbody></table></div>';
   el.innerHTML=html;
 }
 
-var G_MACHINISTE_ID=null;
-
-function ouvrirFormMachiniste(id){
-  G_MACHINISTE_ID=id;
-  var m=id?(G_MACHINISTES.find(function(x){return x.id===id;})||{}):{};
-  var atOpts=Object.keys(MACHINISTES_PAR_ATELIER).map(function(a){
-    return '<option value="'+a+'"'+(m.atelier===a?' selected':'')+'>'+a+'</option>';
-  }).join('');
-  document.getElementById('modMachiniste').innerHTML=
-    '<h3>'+(id?'Modifier':'Ajouter')+' un machiniste</h3>'
-    +'<div class="modal-sub">Personnel de production</div>'
-    +'<div class="fr2">'
-    +'<div class="fr"><label>Nom & Prénom</label>'
-    +'<input id="mNom" value="'+(m.nom||'')+'" placeholder="Ex: M. Dupont"></div>'
-    +'<div class="fr"><label>Atelier</label>'
-    +'<select id="mAtelier">'+atOpts+'</select></div>'
-    +'</div>'
-    +'<div class="fr"><label>Machines maîtrisées</label>'
-    +'<input id="mMachines" value="'+(m.machines||'')+'" placeholder="Ex: RISO 9150, Konica C658..."></div>'
-    +'<div class="fr"><label>Disponibilité</label>'
-    +'<select id="mDispo">'
-    +'<option value="present"'+(m.disponibilite==='present'||!m.disponibilite?' selected':'')+'>✅ Présent</option>'
-    +'<option value="absent"'+(m.disponibilite==='absent'?' selected':'')+'>❌ Absent</option>'
-    +'<option value="conge"'+(m.disponibilite==='conge'?' selected':'')+'>🏖️ Congé</option>'
-    +'</select></div>'
-    +'<div class="fr"><label>Notes</label>'
-    +'<textarea id="mNotes" rows="2">'+(m.notes||'')+'</textarea></div>'
-    +'<div class="fa">'
-    +'<button class="btn" onclick="fermer(\'ovMachiniste\')">Annuler</button>'
-    +'<button class="btn btn-p" onclick="sauverMachiniste()">Enregistrer</button>'
-    +'</div>';
-  document.getElementById('ovMachiniste').classList.add('open');
-}
-
-async function sauverMachiniste(){
-  var nom=document.getElementById('mNom').value.trim();
-  if(!nom){alert('Le nom est obligatoire.');return;}
-  var data={
-    nom:nom,
-    atelier:document.getElementById('mAtelier').value,
-    machines:document.getElementById('mMachines').value.trim(),
-    disponibilite:document.getElementById('mDispo').value,
-    notes:document.getElementById('mNotes').value.trim()
-  };
-  try{
-    if(G_MACHINISTE_ID){
-      await SB.from('machinistes').update(data).eq('id',G_MACHINISTE_ID);
-    } else {
-      // Ajouter aussi dans MACHINISTES_PAR_ATELIER
-      if(!MACHINISTES_PAR_ATELIER[data.atelier]) MACHINISTES_PAR_ATELIER[data.atelier]=[];
-      if(MACHINISTES_PAR_ATELIER[data.atelier].indexOf(nom)===-1){
-        MACHINISTES_PAR_ATELIER[data.atelier].push(nom);
-      }
-      await SB.from('machinistes').insert(data);
-    }
-    fermer('ovMachiniste');
-    await charger();
-  }catch(e){alert('Erreur: '+e.message);}
-}
-
-async function supprimerMachiniste(id){
-  if(!confirm('Supprimer ce machiniste ?')) return;
-  try{
-    await SB.from('machinistes').delete().eq('id',id);
-    await charger();
-  }catch(e){alert('Erreur: '+e.message);}
-}
 
 async function changerDispo(nom, statut){
   var td=today();
