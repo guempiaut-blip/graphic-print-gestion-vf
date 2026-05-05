@@ -662,12 +662,24 @@ function statutMachine(machineId){
 function statutMachiniste(nom, date){
   var d = date || today();
   var dispo = G_DISPOS.find(function(x){return x.machiniste===nom && x.date===d;});
-  if(dispo) return dispo.statut; // present, absent, conge
-  // Vérifier si sur un dossier
+  if(dispo) return dispo.statut;
+  // Vérifier dans affectations — le champ machiniste peut contenir plusieurs noms séparés par virgule
   var affecte = G_AFFECTATIONS.find(function(a){
-    return a.machiniste===nom && a.statut!=='termine' && a.date_debut<=d && a.date_fin>=d;
+    if(a.statut==='termine') return false;
+    if(!a.date_debut || !a.date_fin || a.date_debut>d || a.date_fin<d) return false;
+    var noms=(a.machiniste||'').split(',').map(function(n){return n.trim();});
+    return noms.indexOf(nom)>-1;
   });
   if(affecte) return 'occupe';
+  // Vérifier aussi dans les dossiers directement
+  var dosOccupe = G_DOSSIERS.find(function(dos){
+    if(dos.statut_production!=='en_production') return false;
+    if(!dos.date_lancement || !dos.date_fin_production) return false;
+    if(dos.date_lancement>d || dos.date_fin_production<d) return false;
+    var noms=(dos.machiniste_assigne||'').split(',').map(function(n){return n.trim();});
+    return noms.indexOf(nom)>-1;
+  });
+  if(dosOccupe) return 'occupe';
   return 'present';
 }
 
