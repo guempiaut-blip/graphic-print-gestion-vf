@@ -434,6 +434,8 @@ function renderBoard(){
           (d.etape===3&&!estSolde(d)?'<span class="pill p-ora">Att. client</span>':'')+
           (avecV?'<span class="pill p-pur">Acomptes</span>':'')+
           (estSolde(d)?'<span class="pill p-grn">Soldé ✓</span>':'')+
+          badgeProd(d.statut_production)+
+          badgeBat(d.bat_statut)+
           '</div>';
       }).join('')+'</div>';
   }).join('');
@@ -517,7 +519,10 @@ function ouvrirDetail(id){
     (avecV?'<span class="pill p-pur">Acomptes</span>':'')+
     '</div>'+
     '<table style="width:100%;font-size:12px;border-collapse:collapse">'+
-    [['Commercial',nomC(d.commercial)],['Prestation',d.objet||'—'],['Montant total',fmt(d.montant)],
+    [['Commercial',nomC(d.commercial)],
+     ['BAT Client',badgeBat(d.bat_statut)+(d.bat_date_validation?' — '+d.bat_date_validation:'')+(d.bat_ref?' — '+d.bat_ref:'')],
+     ['Statut production',badgeProd(d.statut_production||'non_lance')],
+     ['Prestation',d.objet||'—'],['Montant total',fmt(d.montant)],
      ['Date facture',d.date_facture||'—'],['Échéance',d.echeance||'—'],
      ['Preuve client',d.preuve_client||'—'],
      ['Relances',rl.length+(rl.length?' ('+rl.join(', ')+')':(': aucune'))],
@@ -776,6 +781,14 @@ async function sauvegarderFormDossier(){
     num:num, client:client,
     commercial:document.getElementById('fComm')?document.getElementById('fComm').value:'C1',
     statut_production: d.statut_production||'non_lance',
+    bat_statut: d.bat_statut||'non_soumis',
+    bat_date_validation: d.bat_date_validation||null,
+    bat_ref: d.bat_ref||null,
+    machines_assignees: d.machines_assignees||null,
+    machinistes_assignes: d.machinistes_assignes||null,
+    date_livraison_souhaitee: d.date_livraison_souhaitee||null,
+    date_livraison_prevue: d.date_livraison_prevue||null,
+    atelier_production: d.atelier_production||null,
     interlocuteur:document.getElementById('fInterlocuteur')?document.getElementById('fInterlocuteur').value:'',
     telephone:document.getElementById('fTelephone')?document.getElementById('fTelephone').value:'',
     email:document.getElementById('fEmail')?document.getElementById('fEmail').value:'',
@@ -996,6 +1009,16 @@ var COMMERCIAUX=[
 })();
 function getC(id){return COMMERCIAUX.find(function(c){return c.id===id;})||COMMERCIAUX[0];}
 function nomC(id){return getC(id).nom;}
+
+function badgeBat(statut){
+  var map={
+    'non_soumis': '<span style="background:#F0F0F0;color:var(--gris);padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700">⏳ Non soumis</span>',
+    'soumis':     '<span style="background:#FEF9E7;color:#C07A00;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700">📤 En attente validation</span>',
+    'valide':     '<span style="background:#E8F8F0;color:#2D7A4F;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700">✅ Validé</span>',
+    'refuse':     '<span style="background:#FDEDEC;color:#C0392B;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700">❌ Refusé</span>'
+  };
+  return map[statut||'non_soumis']||map['non_soumis'];
+}
 
 function badgeProd(statut){
   if(!statut || statut==='non_lance') return '';
