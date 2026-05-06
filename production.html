@@ -1533,9 +1533,10 @@ function renderMachinistes(){
         +'<td style="white-space:nowrap">'
         +'<button class="btn btn-sm" onclick="ouvrirFormMachiniste('+(m.id?'\''+m.id+'\'':'null,\''+m.nom+'\'')+')">✏️ Modifier</button>';
       if(m.id){
-        html+=' <button class="btn btn-sm btn-r" onclick="supprimerMachiniste(\''+m.id+'\')">🗑️</button>';
+        html+=' <button class="btn btn-sm btn-r" onclick="supprimerMachiniste(this.getAttribute(\'data-id\'))" data-id="'+m.id+'" >🗑️</button>';
+      } else {
+        html+=' <button class="btn btn-sm btn-r" onclick="supprimerMachinistePD(this.getAttribute(\'data-nom\'),this.getAttribute(\'data-at\'))" data-nom="'+m.nom+'" data-at="'+m.atelier+'" >🗑️</button>';
       }
-      html+='</td>';
     }
     html+='</tr>';
   });
@@ -1599,20 +1600,38 @@ async function sauverMachiniste(){
     notes: document.getElementById('machNotes').value.trim()
   };
   try{
-    if(G_MACHINISTE_EDIT_ID){
-      await SB.from('machinistes').update(data).eq('id', G_MACHINISTE_EDIT_ID);
+    // Chercher si le machiniste existe déjà en DB par nom
+    var existDB = G_MACHINISTES.find(function(x){
+      return x.id===G_MACHINISTE_EDIT_ID || x.nom===G_MACHINISTE_EDIT_NOM || x.nom===nom;
+    });
+    if(G_MACHINISTE_EDIT_ID || existDB){
+      var editId = G_MACHINISTE_EDIT_ID || (existDB ? existDB.id : null);
+      if(editId){
+        await SB.from('machinistes').update(data).eq('id', editId);
+      } else {
+        await SB.from('machinistes').insert(data);
+      }
     } else {
-      // Ajouter dans MACHINISTES_PAR_ATELIER si non présent
+      // Nouveau machiniste — vérifier dans MACHINISTES_PAR_ATELIER
       var atelier = data.atelier;
       if(!MACHINISTES_PAR_ATELIER[atelier]) MACHINISTES_PAR_ATELIER[atelier] = [];
-      if(MACHINISTES_PAR_ATELIER[atelier].indexOf(nom) === -1){
-        MACHINISTES_PAR_ATELIER[atelier].push(nom);
-      }
       await SB.from('machinistes').insert(data);
     }
     fermer('ovMachiniste');
     await charger();
   } catch(e){ alert('Erreur: '+e.message); }
+}
+
+async function supprimerMachinistePD(nom, atelier){
+  if(!confirm('Supprimer '+nom+' de l\'atelier '+atelier+' ?')) return;
+  // Retirer de MACHINISTES_PAR_ATELIER
+  if(MACHINISTES_PAR_ATELIER[atelier]){
+    MACHINISTES_PAR_ATELIER[atelier] = MACHINISTES_PAR_ATELIER[atelier].filter(function(n){ return n!==nom; });
+  }
+  // Si existe en DB, supprimer aussi
+  var inDB = G_MACHINISTES.find(function(x){ return x.nom===nom; });
+  if(inDB) await SB.from('machinistes').delete().eq('id', inDB.id);
+  renderMachinistes();
 }
 
 async function supprimerMachiniste(id){
@@ -1704,10 +1723,27 @@ function renderPlanning(){
       html+='<tr style="background:var(--fond)"><td class="rl" style="font-size:11px;color:var(--gris)">👷 '+nom+'</td>';
       jours.forEach(function(j){
         var s=statutMachiniste(nom,j.key);
+        // Chercher affectation avec liste CSV de machinistes
         var aff=G_AFFECTATIONS.find(function(af){
-          return af.machiniste===nom && af.statut!=='termine'
-            && af.date_debut<=j.key && af.date_fin>=j.key;
+          if(af.statut==='termine'||!af.date_debut||!af.date_fin) return false;
+          if(af.date_debut>j.key||af.date_fin<j.key) return false;
+          var noms=(af.machiniste||'').split(',').map(function(n){return n.trim();});
+          return noms.indexOf(nom)>-1;
         });
+        // Chercher aussi dans les dossiers
+        if(!aff){
+          var dosAff=G_DOSSIERS.find(function(d){
+            if(d.statut_production!=='en_production') return false;
+            if(!d.date_lancement||!d.date_fin_production) return false;
+            if(d.date_lancement>j.key||d.date_fin_production<j.key) return false;
+            var noms=(d.machiniste_assigne||'').split(',').map(function(n){return n.trim();});
+            return noms.indexOf(nom)>-1;
+          });
+          if(dosAff){
+            var clientLabel=dosAff.client||dosAff.num||'—';
+            aff={dossier_num:dosAff.num, dossier_id:dosAff.id, client_label:clientLabel};
+          }
+        }
         html+='<td>';
         if(s==='absent') html+='<div class="pcell pcell-urgent">❌ Absent</div>';
         else if(s==='conge') html+='<div class="pcell" style="background:#FEF3E2;color:var(--orange)">🏖️ Congé</div>';
@@ -1786,7 +1822,9 @@ function ouvrirFormMachineDB(id){
   G_MACHINE_DB_EDIT_ID=id;
   var m=id?(G_MACHINES_DB.find(function(x){return x.id===id;})||{}):{};
   var atOpts=getAllAteliers().map(function(a){
-    return '<option value="'+a.id+'"'+(m.atelier_id===a.id?' selected':'')+'>'+a.icone+' '+a.nom+'</option>';
+    var val = a.id || a.nom; // UUID pour DB, nom pour statiques
+    var sel = (m.atelier_id && m.atelier_id===a.id) || (m.atelier_nom && m.atelier_nom===a.nom);
+    return '<option value="'+val+'"'+(sel?' selected':'')+'>'+a.icone+' '+a.nom+'</option>';
   }).join('');
   document.getElementById('modMachineDB').innerHTML=
     '<h3>'+(id?'Modifier':'Nouvelle')+' machine</h3>'
@@ -1819,7 +1857,8 @@ async function sauverMachineDB(){
   var nom=document.getElementById('mdbNom').value.trim();
   if(!nom){alert('Le nom est obligatoire.');return;}
   var data={
-    atelier_id:document.getElementById('mdbAtelier').value,
+    atelier_id:document.getElementById('mdbAtelier').value||null,
+    atelier_nom:document.getElementById('mdbAtelier').options[document.getElementById('mdbAtelier').selectedIndex]?.text||'',
     nom:nom,
     format:document.getElementById('mdbFormat').value.trim(),
     volume:document.getElementById('mdbVolume').value.trim(),
