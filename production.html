@@ -79,6 +79,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 .s-dispo{background:#E8F8F0;color:var(--vert)}
 .s-occupe{background:#FEF3E2;color:var(--orange)}
 .s-panne{background:#FDEDEC;color:var(--rouge)}
+.s-warn{background:#FEF3E2;color:var(--orange)}
 .s-attente{background:#FEF9E7;color:#C07A00}
 .s-prod{background:#FEF3E2;color:var(--orange)}
 .s-ok{background:#E8F8F0;color:var(--vert)}
@@ -689,9 +690,9 @@ function statutMachiniste(nom, date){
 function badgeStatutMachine(s){
   var map={
     dispo:'<span class="statut s-dispo"><span class="dot"></span>Disponible</span>',
-    occupe:'<span class="statut s-occupe"><span class="dot"></span>Occupée</span>',
+    occupe:'<span class="statut s-prod"><span class="dot"></span>En production</span>',
     panne:'<span class="statut s-panne"><span class="dot"></span>En panne</span>',
-    maintenance:'<span class="statut s-occupe"><span class="dot"></span>Maintenance</span>'
+    maintenance:'<span class="statut s-warn"><span class="dot"></span>Maintenance</span>'
   };
   return map[s.statut]||map.dispo;
 }
@@ -1600,21 +1601,25 @@ async function sauverMachiniste(){
     notes: document.getElementById('machNotes').value.trim()
   };
   try{
-    // Chercher si le machiniste existe déjà en DB par nom
+    // Chercher si le machiniste existe déjà en DB par nom ou ID
     var existDB = G_MACHINISTES.find(function(x){
       return x.id===G_MACHINISTE_EDIT_ID || x.nom===G_MACHINISTE_EDIT_NOM || x.nom===nom;
     });
-    if(G_MACHINISTE_EDIT_ID || existDB){
-      var editId = G_MACHINISTE_EDIT_ID || (existDB ? existDB.id : null);
-      if(editId){
-        await SB.from('machinistes').update(data).eq('id', editId);
-      } else {
-        await SB.from('machinistes').insert(data);
-      }
+    var editId = G_MACHINISTE_EDIT_ID || (existDB ? existDB.id : null);
+    if(editId){
+      // Modifier l'existant
+      await SB.from('machinistes').update(data).eq('id', editId);
+      // Mettre à jour MACHINISTES_PAR_ATELIER
+      var oldNom = G_MACHINISTE_EDIT_NOM || (existDB ? existDB.nom : nom);
+      Object.keys(MACHINISTES_PAR_ATELIER).forEach(function(k){
+        var idx2 = MACHINISTES_PAR_ATELIER[k].indexOf(oldNom);
+        if(idx2>-1) MACHINISTES_PAR_ATELIER[k].splice(idx2,1);
+      });
+      if(!MACHINISTES_PAR_ATELIER[data.atelier]) MACHINISTES_PAR_ATELIER[data.atelier]=[];
+      if(MACHINISTES_PAR_ATELIER[data.atelier].indexOf(nom)===-1)
+        MACHINISTES_PAR_ATELIER[data.atelier].push(nom);
     } else {
-      // Nouveau machiniste — vérifier dans MACHINISTES_PAR_ATELIER
-      var atelier = data.atelier;
-      if(!MACHINISTES_PAR_ATELIER[atelier]) MACHINISTES_PAR_ATELIER[atelier] = [];
+      // Nouveau machiniste
       await SB.from('machinistes').insert(data);
     }
     fermer('ovMachiniste');
@@ -1747,7 +1752,25 @@ function renderPlanning(){
         html+='<td>';
         if(s==='absent') html+='<div class="pcell pcell-urgent">❌ Absent</div>';
         else if(s==='conge') html+='<div class="pcell" style="background:#FEF3E2;color:var(--orange)">🏖️ Congé</div>';
-        else if(aff) html+='<div class="pcell pcell-prod">'+( aff.dossier_num||'—')+'</div>';
+        else if(s==='occupe'||aff){
+          var lblCell = '—';
+          if(aff){
+            var dAff = G_DOSSIERS.find(function(dx){return dx.id===aff.dossier_id;});
+            lblCell = dAff ? (dAff.client||dAff.num||'—') : (aff.dossier_num||'—');
+          } else {
+            // Chercher via dossiers directement
+            var dDir = G_DOSSIERS.find(function(dos){
+              if(dos.statut_production!=='en_production') return false;
+              if(!dos.date_lancement||!dos.date_fin_production) return false;
+              if(dos.date_lancement>j.key||dos.date_fin_production<j.key) return false;
+              var ns=(dos.machiniste_assigne||'').split(',').map(function(n){return n.trim();});
+              return ns.indexOf(nom)>-1;
+            });
+            if(dDir) lblCell = dDir.client||dDir.num||'—';
+          }
+          html+='<div class="pcell pcell-prod" title="'+lblCell+'">'
+            +lblCell.substring(0,14)+(lblCell.length>14?'…':'')+'</div>';
+        }
         else html+='<div class="pcell pcell-ok" style="opacity:0.4">Libre</div>';
         html+='</td>';
       });
@@ -1856,9 +1879,33 @@ function ouvrirFormMachineDB(id){
 async function sauverMachineDB(){
   var nom=document.getElementById('mdbNom').value.trim();
   if(!nom){alert('Le nom est obligatoire.');return;}
+  // Résoudre l'atelier_id: si ce n'est pas un UUID, chercher/créer dans ateliers_db
+  var rawVal = document.getElementById('mdbAtelier').value||'';
+  var atelierNom = document.getElementById('mdbAtelier').options[document.getElementById('mdbAtelier').selectedIndex]?.text||rawVal;
+  var isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawVal);
+  var atelierUUID = isUUID ? rawVal : null;
+  if(!isUUID){
+    // Chercher si l'atelier existe déjà dans ateliers_db
+    var existAt = G_ATELIERS_DB.find(function(a){return a.nom===atelierNom;});
+    if(existAt){
+      atelierUUID = existAt.id;
+    } else {
+      // Créer l'atelier dans ateliers_db
+      var atEl = ATELIERS.find(function(a){return a.nom===atelierNom;});
+      var newAt = await SB.from('ateliers_db').insert({
+        nom: atelierNom,
+        icone: atEl?atEl.icone:'🏭',
+        couleur: atEl?atEl.couleur:'#185FA5',
+        bg: atEl?atEl.bg:'#EEF2F8'
+      }).select();
+      if(newAt.error){ alert('Erreur création atelier: '+newAt.error.message); return; }
+      atelierUUID = newAt.data[0].id;
+      G_ATELIERS_DB.push(newAt.data[0]);
+    }
+  }
   var data={
-    atelier_id:document.getElementById('mdbAtelier').value||null,
-    atelier_nom:document.getElementById('mdbAtelier').options[document.getElementById('mdbAtelier').selectedIndex]?.text||'',
+    atelier_id: atelierUUID,
+    atelier_nom: atelierNom,
     nom:nom,
     format:document.getElementById('mdbFormat').value.trim(),
     volume:document.getElementById('mdbVolume').value.trim(),
