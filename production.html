@@ -125,7 +125,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--
 <div class="topbar">
   <div class="topbar-title"><span>🏭</span> GRAPHIC PRINT — PRODUCTION</div>
   <span id="modeBadge" class="badge-or" style="display:none">Admin</span>
-  <a href="index.html" class="btn-top">← Commercial</a>
+  <a href="https://graphic-print-gestion.pages.dev/index.html" class="btn-top">← Commercial</a>
   <button class="btn-top" id="btnCo" onclick="ouvrirLogin()">Connexion</button>
   <button class="btn-top" id="btnDeco" style="display:none" onclick="deconnecter()">Déconnexion</button>
 </div>
@@ -729,7 +729,12 @@ function getAllAteliers(){
   // Fusionner ateliers statiques + ateliers DB
   var tous = ATELIERS.slice();
   G_ATELIERS_DB.forEach(function(a){
-    var existe = tous.find(function(x){return x.id===a.id||x.nom===a.nom;});
+    // Matcher par id OU par nom normalisé OU par db_id
+    var nomNorm = function(n){ return (n||'').toLowerCase().replace(/\s+/g,''); };
+    var existe = tous.find(function(x){
+      return x.id===a.id || x.db_id===a.id || x.nom===a.nom
+          || nomNorm(x.nom)===nomNorm(a.nom);
+    });
     if(!existe){
       tous.push({
         id: a.id,
@@ -1183,7 +1188,7 @@ function getMachineOptions(atelier, machineSelectionnee){
   return '<option value="">— Sélectionner une machine —</option>'
     +atelier.machines.map(function(m){
       var s=statutMachine(m.id);
-      var dispo=s.statut==='dispo'?'✅':s.statut==='occupe'?'🟡 Occupée':s.statut==='panne'?'🔴 En panne':'🔧';
+      var dispo=s.statut==='dispo'?'✅':s.statut==='occupe'?'🟡 En prod':s.statut==='panne'?'🔴 En panne':'🔧';
       return '<option value="'+m.nom+'" data-id="'+m.id+'"'+(machineSelectionnee===m.nom?' selected':'')+'>'+dispo+' '+m.nom+'</option>';
     }).join('');
 }
@@ -1227,74 +1232,60 @@ function setMidProd(sel){
 }
 
 async function sauverProd(){
-  if(!G_PROD_ID){ alert('Erreur: aucun dossier sélectionné.'); return; }
-  // Vérifier que les éléments de base existent
-  var statutEl = document.getElementById('pStatut');
-  if(!statutEl){ alert('Erreur formulaire: veuillez rouvrir le dossier.'); return; }
-  var statut=document.getElementById('pStatut').value;
-  // Lire les machines cochées
-  var machinesChecked=Array.from(document.querySelectorAll('input[name="pMachine"]:checked'))
-    .map(function(cb){return cb.value;});
-  var machinesIds=Array.from(document.querySelectorAll('input[name="pMachine"]:checked'))
-    .map(function(cb){return cb.getAttribute('data-id');});
+  if(!G_PROD_ID) return;
+  var statutEl=document.getElementById('pStatut');
+  if(!statutEl){alert('Erreur formulaire.');return;}
+  var statut=statutEl.value;
+  var atelier=Array.from(document.querySelectorAll('input[name="pAtelier"]:checked')).map(function(cb){return cb.value;}).join(', ');
+  var machinesChecked=Array.from(document.querySelectorAll('input[name="pMachine"]:checked')).map(function(cb){return cb.value;});
+  var machinesIds=Array.from(document.querySelectorAll('input[name="pMachine"]:checked')).map(function(cb){return cb.getAttribute('data-id');});
   var machine=machinesChecked.join(', ');
   var machineId=machinesIds.join(', ');
-  // Lire les machinistes cochés
-  var machinistesChecked=Array.from(document.querySelectorAll('input[name="pMachiniste"]:checked'))
-    .map(function(cb){return cb.value;});
+  var machinistesChecked=Array.from(document.querySelectorAll('input[name="pMachiniste"]:checked')).map(function(cb){return cb.value;});
   var machiniste=machinistesChecked.join(', ');
-  var debut=document.getElementById('pDebut').value||null;
-  var fin=document.getElementById('pFin').value||null;
-  var atelier=document.getElementById('pAtelier').value;
-  var notes=document.getElementById('pNotes').value.trim();
-
+  var debut=document.getElementById('pDebut')?document.getElementById('pDebut').value||null:null;
+  var fin=document.getElementById('pFin')?document.getElementById('pFin').value||null:null;
+  var dateSouhaitee=document.getElementById('pDateSouhaitee')?document.getElementById('pDateSouhaitee').value||null:null;
+  var dateLivraison=document.getElementById('pDateLivraison')?document.getElementById('pDateLivraison').value||null:null;
+  var notes=document.getElementById('pNotes')?document.getElementById('pNotes').value.trim():'';
+  var batStatut=document.getElementById('pBatStatut')?document.getElementById('pBatStatut').value:null;
+  var batDate=document.getElementById('pBatDate')?document.getElementById('pBatDate').value||null:null;
+  var batRef=document.getElementById('pBatRef')?document.getElementById('pBatRef').value||null:null;
+  if(statut==='en_production'&&batStatut&&batStatut!=='valide'){
+    if(!confirm('BAT non validé. Lancer quand même?')) return;
+  }
   try{
-    // Mettre à jour le dossier
-    var batStatut=document.getElementById('pBatStatut')?document.getElementById('pBatStatut').value:null;
-    var batDate=document.getElementById('pBatDate')?document.getElementById('pBatDate').value:null;
-    var batRef=document.getElementById('pBatRef')?document.getElementById('pBatRef').value:null;
-    var dateSouhaitee=document.getElementById('pDateSouhaitee')?document.getElementById('pDateSouhaitee').value:null;
-    var dateLivraison=document.getElementById('pDateLivraison')?document.getElementById('pDateLivraison').value:null;
-    // Bloquer si BAT non validé et statut = en_production
-    if(statut==='en_production' && batStatut !== 'valide'){
-      alert('⚠️ Impossible de lancer la production : le BAT n\'a pas encore été validé par le client.\nValidez le BAT avant de lancer.');
-      return;
-    }
     var updates={
       statut_production:statut,
-      atelier_production:atelier,
-      ateliers_assignes:atelier,
-      machine_assignee:machine,
-      machine_id_assignee:machineId,
-      machiniste_assigne:machiniste,
-      machines_assignees:machine,
-      machinistes_assignes:machiniste,
-      date_lancement:debut||null,
-      date_fin_production:fin||null,
-      date_livraison_souhaitee:dateSouhaitee||null,
-      date_livraison_prevue:dateLivraison||null,
+      atelier_production:atelier||null,
+      ateliers_assignes:atelier||null,
+      machine_assignee:machine||null,
+      machine_id_assignee:machineId||null,
+      machines_assignees:machine||null,
+      machiniste_assigne:machiniste||null,
+      machinistes_assignes:machiniste||null,
+      date_lancement:debut,
+      date_fin_production:fin,
+      date_livraison_souhaitee:dateSouhaitee,
+      date_livraison_prevue:dateLivraison,
       bat_statut:batStatut||'non_soumis',
-      bat_date_validation:batDate||null,
-      bat_ref:batRef||null,
+      bat_date_validation:batDate,
+      bat_ref:batRef,
       notes_production:notes
     };
     var res=await SB.from('dossiers').update(updates).eq('id',G_PROD_ID);
     if(res.error) throw res.error;
-
-    // Créer/mettre à jour affectation si en production
-    if(statut==='en_production' && machine && debut && fin){
+    var idx3=G_DOSSIERS.findIndex(function(d){return d.id===G_PROD_ID;});
+    if(idx3>-1) Object.assign(G_DOSSIERS[idx3],updates);
+    if(statut==='en_production'&&machinesIds.length>0&&debut&&fin){
       var d=G_DOSSIERS.find(function(x){return x.id===G_PROD_ID;})||{};
-      // Supprimer anciennes affectations et recréer
       await SB.from('affectations_production').delete().eq('dossier_id',G_PROD_ID);
-      // Créer une affectation par machine cochée
-      var mIds = machinesIds;
-      var mNoms = machinesChecked;
-      for(var mi=0; mi<mIds.length; mi++){
+      for(var mi=0;mi<machinesIds.length;mi++){
         await SB.from('affectations_production').insert({
           dossier_id:G_PROD_ID,
           dossier_num:d.num||'',
-          machine_id:mIds[mi],
-          machine_nom:mNoms[mi],
+          machine_id:machinesIds[mi],
+          machine_nom:machinesChecked[mi],
           machiniste:machiniste,
           date_debut:debut,
           date_fin:fin,
@@ -1306,7 +1297,6 @@ async function sauverProd(){
     await charger();
   }catch(e){alert('Erreur: '+e.message);}
 }
-
 async function terminerProduction(dossierId){
   if(!confirm('Marquer cette production comme terminée ?')) return;
   try{
@@ -1591,42 +1581,42 @@ function ouvrirFormMachiniste(id, nomDefaut){
 }
 
 async function sauverMachiniste(){
-  var nom = document.getElementById('machNom').value.trim();
-  if(!nom){ alert('Le nom est obligatoire.'); return; }
-  var data = {
-    nom: nom,
-    atelier: document.getElementById('machAtelier').value,
-    machines: document.getElementById('machMachines').value.trim(),
-    telephone: document.getElementById('machTel').value.trim(),
-    notes: document.getElementById('machNotes').value.trim()
+  var nom=document.getElementById('machNom').value.trim();
+  if(!nom){alert('Le nom est obligatoire.');return;}
+  var data={
+    nom:nom,
+    atelier:document.getElementById('machAtelier').value,
+    machines:document.getElementById('machMachines')?document.getElementById('machMachines').value.trim():'',
+    notes:document.getElementById('machNotes')?document.getElementById('machNotes').value.trim():''
   };
   try{
-    // Chercher si le machiniste existe déjà en DB par nom ou ID
-    var existDB = G_MACHINISTES.find(function(x){
-      return x.id===G_MACHINISTE_EDIT_ID || x.nom===G_MACHINISTE_EDIT_NOM || x.nom===nom;
+    // Mettre à jour MACHINISTES_PAR_ATELIER
+    var oldNom=G_MACHINISTE_EDIT_NOM||nom;
+    Object.keys(MACHINISTES_PAR_ATELIER).forEach(function(k){
+      var i=MACHINISTES_PAR_ATELIER[k].indexOf(oldNom);
+      if(i>-1) MACHINISTES_PAR_ATELIER[k].splice(i,1);
     });
-    var editId = G_MACHINISTE_EDIT_ID || (existDB ? existDB.id : null);
+    if(!MACHINISTES_PAR_ATELIER[data.atelier]) MACHINISTES_PAR_ATELIER[data.atelier]=[];
+    if(MACHINISTES_PAR_ATELIER[data.atelier].indexOf(nom)===-1)
+      MACHINISTES_PAR_ATELIER[data.atelier].push(nom);
+    // Chercher en DB
+    var existDB=G_MACHINISTES.find(function(x){
+      return x.id===G_MACHINISTE_EDIT_ID||x.nom===oldNom;
+    });
+    var editId=G_MACHINISTE_EDIT_ID||(existDB?existDB.id:null);
     if(editId){
-      // Modifier l'existant
-      await SB.from('machinistes').update(data).eq('id', editId);
-      // Mettre à jour MACHINISTES_PAR_ATELIER
-      var oldNom = G_MACHINISTE_EDIT_NOM || (existDB ? existDB.nom : nom);
-      Object.keys(MACHINISTES_PAR_ATELIER).forEach(function(k){
-        var idx2 = MACHINISTES_PAR_ATELIER[k].indexOf(oldNom);
-        if(idx2>-1) MACHINISTES_PAR_ATELIER[k].splice(idx2,1);
-      });
-      if(!MACHINISTES_PAR_ATELIER[data.atelier]) MACHINISTES_PAR_ATELIER[data.atelier]=[];
-      if(MACHINISTES_PAR_ATELIER[data.atelier].indexOf(nom)===-1)
-        MACHINISTES_PAR_ATELIER[data.atelier].push(nom);
+      await SB.from('machinistes').update(data).eq('id',editId);
+      var idx2=G_MACHINISTES.findIndex(function(x){return x.id===editId;});
+      if(idx2>-1) Object.assign(G_MACHINISTES[idx2],data);
     } else {
-      // Nouveau machiniste
-      await SB.from('machinistes').insert(data);
+      var res=await SB.from('machinistes').insert(data).select();
+      if(res.error) throw res.error;
+      if(res.data&&res.data[0]) G_MACHINISTES.push(res.data[0]);
     }
     fermer('ovMachiniste');
-    await charger();
-  } catch(e){ alert('Erreur: '+e.message); }
+    renderMachinistes();
+  }catch(e){alert('Erreur: '+e.message);}
 }
-
 async function supprimerMachinistePD(nom, atelier){
   if(!confirm('Supprimer '+nom+' de l\'atelier '+atelier+' ?')) return;
   // Retirer de MACHINISTES_PAR_ATELIER
@@ -1722,8 +1712,14 @@ function renderPlanning(){
       html+='</tr>';
     });
 
-    // Ligne par machiniste
-    var machs=getMachinistesAtelier(a.nom);
+    // Ligne par machiniste - déduplication par atelier principal
+    var machs=getMachinistesAtelier(a.nom).filter(function(nom){
+      var atPrincipal=null;
+      Object.keys(MACHINISTES_PAR_ATELIER).forEach(function(k){
+        if(MACHINISTES_PAR_ATELIER[k].indexOf(nom)>-1&&!atPrincipal) atPrincipal=k;
+      });
+      return !atPrincipal||atPrincipal===a.nom;
+    });
     machs.forEach(function(nom){
       html+='<tr style="background:var(--fond)"><td class="rl" style="font-size:11px;color:var(--gris)">👷 '+nom+'</td>';
       jours.forEach(function(j){
@@ -1890,17 +1886,36 @@ async function sauverMachineDB(){
     if(existAt){
       atelierUUID = existAt.id;
     } else {
-      // Créer l'atelier dans ateliers_db
-      var atEl = ATELIERS.find(function(a){return a.nom===atelierNom;});
-      var newAt = await SB.from('ateliers_db').insert({
-        nom: atelierNom,
-        icone: atEl?atEl.icone:'🏭',
-        couleur: atEl?atEl.couleur:'#185FA5',
-        bg: atEl?atEl.bg:'#EEF2F8'
-      }).select();
-      if(newAt.error){ alert('Erreur création atelier: '+newAt.error.message); return; }
-      atelierUUID = newAt.data[0].id;
-      G_ATELIERS_DB.push(newAt.data[0]);
+      // Vérifier si c'est un atelier statique existant
+      var atStatique = ATELIERS.find(function(a){
+        return a.nom===atelierNom || (a.nom||'').toLowerCase().replace(/\s+/g,'')===(atelierNom||'').toLowerCase().replace(/\s+/g,'');
+      });
+      if(atStatique){
+        // Atelier statique — créer dans DB pour avoir un UUID mais lier par nom
+        var newAt = await SB.from('ateliers_db').insert({
+          nom: atStatique.nom, // Utiliser le nom exact de l'atelier statique
+          icone: atStatique.icone||'🏭',
+          couleur: atStatique.couleur||'#185FA5',
+          bg: atStatique.bg||'#EEF2F8'
+        }).select();
+        if(newAt.error){ alert('Erreur: '+newAt.error.message); return; }
+        atelierUUID = newAt.data[0].id;
+        G_ATELIERS_DB.push(newAt.data[0]);
+        // Mettre à jour l'id de l'atelier statique pour le matching futur
+        atStatique.db_id = atelierUUID;
+      } else {
+        // Nouvel atelier custom
+        var atEl = ATELIERS.find(function(a){return a.nom===atelierNom;});
+        var newAt2 = await SB.from('ateliers_db').insert({
+          nom: atelierNom,
+          icone: atEl?atEl.icone:'🏭',
+          couleur: atEl?atEl.couleur:'#185FA5',
+          bg: atEl?atEl.bg:'#EEF2F8'
+        }).select();
+        if(newAt2.error){ alert('Erreur: '+newAt2.error.message); return; }
+        atelierUUID = newAt2.data[0].id;
+        G_ATELIERS_DB.push(newAt2.data[0]);
+      }
     }
   }
   var data={
